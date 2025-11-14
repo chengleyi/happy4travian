@@ -31,7 +31,7 @@ public class ServerController {
     return ResponseEntity.ok(repo.save(s));
   }
 
-  @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+  @PostMapping(path = "/form", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
   public ResponseEntity<Server> createForm(@ModelAttribute CreateServerRequest req) {
     if (req.getCode() == null || req.getCode().isEmpty()) return ResponseEntity.badRequest().build();
     var s = new Server();
