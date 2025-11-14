@@ -18,7 +18,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y maven
       - name: Build backend jar
         working-directory: backend
-        run: mvn -B -DskipTests package
+        run: mvn -B -DskipTests clean package org.springframework.boot:spring-boot-maven-plugin:3.3.4:repackage
       - name: Verify jar exists
         run: |
           ls -lah backend/target
@@ -32,8 +32,8 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
-            if command -v dnf >/dev/null 2>&1; then sudo dnf install -y java-17-openjdk || true; else sudo yum install -y java-17-openjdk || true; fi
-            java -version || true
+            sudo yum install -y java-17-openjdk-devel || true
+            java -version
             sudo mkdir -p /opt/happy4travian /etc/happy4travian /etc/systemd/system
             if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
       - name: Upload jar to server
