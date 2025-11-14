@@ -1,0 +1,3 @@
+.container{padding:24rpx}
+.title{font-size:36rpx;margin-bottom:24rpx}
+.status{margin-top:16rpx;color:#007acc}

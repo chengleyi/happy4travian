@@ -1,0 +1,11 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "happy4travian-demo",
+  "appid": "",
+  "description": "WeChat Mini Program Demo",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true
+  }
+}
