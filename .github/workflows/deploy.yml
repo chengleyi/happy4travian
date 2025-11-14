@@ -23,17 +23,33 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           source: backend/target/happy4travian-backend-0.1.0.jar
           target: /opt/happy4travian/
-          strip_components: 2
-      - name: Restart service
+      - name: Upload systemd unit
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: ops/systemd/happy4travian.service
+          target: /etc/systemd/system/
+      - name: Prepare and restart service
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           script: |
+            sudo mkdir -p /opt/happy4travian /etc/happy4travian
+            if [ -f /opt/happy4travian/happy4travian-backend-0.1.0.jar ]; then sudo mv /opt/happy4travian/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; fi
+            sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
+            SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+            EOF'
             sudo systemctl daemon-reload
+            sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service

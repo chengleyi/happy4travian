@@ -8,7 +8,7 @@ EnvironmentFile=/etc/happy4travian/happy4travian.env
 ExecStart=/usr/bin/java -jar /opt/happy4travian/happy4travian-backend.jar
 Restart=always
 RestartSec=5
-User=happy
+User=root
 LimitNOFILE=65535
 
 [Install]
