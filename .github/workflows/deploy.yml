@@ -73,4 +73,10 @@ jobs:
             sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service
             sleep 2
+            echo "==> systemctl status"
+            sudo systemctl status happy4travian.service --no-pager || true
+            echo "==> journalctl tail"
+            journalctl -u happy4travian.service -n 200 --no-pager || true
+            echo "==> listening sockets"
+            (ss -ltnp || netstat -ltnp) | grep 8080 || true
             curl -s http://127.0.0.1:8080/api/v1/health || true
