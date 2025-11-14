@@ -4,6 +4,7 @@ import com.happy.travian.domain.Server;
 import com.happy.travian.dto.CreateServerRequest;
 import com.happy.travian.repository.ServerRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +20,18 @@ public class ServerController {
 
   @PostMapping
   public ResponseEntity<Server> create(@RequestBody CreateServerRequest req) {
+    if (req.getCode() == null || req.getCode().isEmpty()) return ResponseEntity.badRequest().build();
+    var s = new Server();
+    s.setCode(req.getCode());
+    s.setRegion(req.getRegion());
+    s.setSpeed(req.getSpeed());
+    if (req.getStartDate() != null && !req.getStartDate().isEmpty()) s.setStartDate(LocalDate.parse(req.getStartDate()));
+    s.setStatus("active");
+    return ResponseEntity.ok(repo.save(s));
+  }
+
+  @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+  public ResponseEntity<Server> createForm(CreateServerRequest req) {
     if (req.getCode() == null || req.getCode().isEmpty()) return ResponseEntity.badRequest().build();
     var s = new Server();
     s.setCode(req.getCode());
