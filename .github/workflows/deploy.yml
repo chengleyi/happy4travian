@@ -17,6 +17,19 @@ jobs:
       - name: Build backend jar
         working-directory: backend
         run: mvn -B -DskipTests package
+      - name: Provision Java and firewall on server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            if command -v dnf >/dev/null 2>&1; then sudo dnf install -y java-17-openjdk || true; else sudo yum install -y java-17-openjdk || true; fi
+            java -version || true
+            sudo mkdir -p /opt/happy4travian /etc/happy4travian /etc/systemd/system
+            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
       - name: Upload jar to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -53,3 +66,5 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service
+            sleep 2
+            curl -s http://127.0.0.1:8080/api/v1/health || true
