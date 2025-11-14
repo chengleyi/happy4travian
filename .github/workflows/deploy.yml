@@ -80,3 +80,7 @@ jobs:
             echo "==> listening sockets"
             (ss -ltnp || netstat -ltnp) | grep 8080 || true
             curl -s http://127.0.0.1:8080/api/v1/health || true
+      - name: External health probe
+        run: |
+          echo "==> probe from runner"
+          curl -s -o /dev/null -w "HTTP:%{http_code} BYTES:%{size_download}\n" http://47.99.88.168:8080/api/v1/health || true
