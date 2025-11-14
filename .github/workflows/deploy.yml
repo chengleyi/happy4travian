@@ -116,6 +116,8 @@ jobs:
           script: |
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             if [ -f /opt/happy4travian/happy4travian-backend-0.1.0.jar ]; then sudo mv /opt/happy4travian/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; fi
+            echo "==> jar contents (controllers)"
+            (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
