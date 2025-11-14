@@ -115,7 +115,17 @@ jobs:
             LIST=$(curl -s http://127.0.0.1:8080/api/v1/servers || echo "")
             echo "servers before: $LIST"
             if echo "$LIST" | grep -q "^\[\]$"; then
-              curl -s -H 'Content-Type: application/x-www-form-urlencoded' -X POST -d 'code=ci-probe&region=CN&speed=x1&startDate=2025-11-01' http://127.0.0.1:8080/api/v1/servers || true
+              # try JSON API seed
+              curl -s -H 'Content-Type: application/json' -X POST -d '{"code":"ci-probe","region":"CN","speed":"x1","startDate":"2025-11-01"}' http://127.0.0.1:8080/api/v1/servers || true
+              sleep 2
+              AFTER=$(curl -s http://127.0.0.1:8080/api/v1/servers || echo "")
+              echo "servers after API seed: $AFTER"
+              if echo "$AFTER" | grep -q "^\[\]$"; then
+                # fallback SQL seed
+                DB_URL="${{ secrets.DB_URL }}"; DB_USER="${{ secrets.DB_USER }}"; DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+                DB_HOST=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://([^/:]+).*|\1|'); DB_PORT=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/:]+:([0-9]+).*|\1|'); DB_NAME=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/]+/([^?]+).*|\1|'); [ -z "$DB_PORT" ] && DB_PORT=3306
+                mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; INSERT INTO servers(code,region,speed,start_date,status) VALUES('ci-probe','CN','x1','2025-11-01','active');"
+              fi
             fi
             curl -s http://127.0.0.1:8080/api/v1/servers || true
       - name: External health probe
