@@ -57,6 +57,15 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: ops/systemd/happy4travian.service
           target: /etc/systemd/system/
+      - name: Upload DB schema
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: docs/schema.sql
+          target: /opt/happy4travian/
       - name: DB preflight and create tables
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -74,7 +83,8 @@ jobs:
             DB_NAME=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/]+/([^?]+).*|\1|')
             [ -z "$DB_PORT" ] && DB_PORT=3306
             sudo yum install -y mariadb || true
-            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4; USE \`$DB_NAME\`; CREATE TABLE IF NOT EXISTS servers ( id BIGINT NOT NULL AUTO_INCREMENT, code VARCHAR(32) NOT NULL, region VARCHAR(32), speed VARCHAR(16), start_date DATE, status VARCHAR(16), PRIMARY KEY (id) ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4;"
+            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < /opt/happy4travian/schema.sql
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES;"
       - name: Prepare and restart service
         uses: appleboy/ssh-action@v1.0.0
