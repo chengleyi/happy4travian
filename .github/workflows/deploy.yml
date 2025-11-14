@@ -84,7 +84,20 @@ jobs:
             [ -z "$DB_PORT" ] && DB_PORT=3306
             sudo yum install -y mariadb || true
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4;"
-            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < /opt/happy4travian/schema.sql
+            echo "listing /opt/happy4travian"
+            ls -lah /opt/happy4travian || true
+            SCHEMA_PATH=""
+            if [ -f /opt/happy4travian/schema.sql ]; then
+              SCHEMA_PATH=/opt/happy4travian/schema.sql
+            elif [ -f /opt/happy4travian/docs/schema.sql ]; then
+              SCHEMA_PATH=/opt/happy4travian/docs/schema.sql
+            fi
+            if [ -n "$SCHEMA_PATH" ]; then
+              mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$SCHEMA_PATH"
+            else
+              echo "schema.sql not found under /opt/happy4travian"
+              find /opt/happy4travian -maxdepth 3 -name schema.sql || true
+            fi
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES;"
       - name: Prepare and restart service
         uses: appleboy/ssh-action@v1.0.0
