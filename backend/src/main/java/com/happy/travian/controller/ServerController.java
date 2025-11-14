@@ -5,6 +5,7 @@ import com.happy.travian.dto.CreateServerRequest;
 import com.happy.travian.repository.ServerRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -31,7 +32,7 @@ public class ServerController {
   }
 
   @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-  public ResponseEntity<Server> createForm(CreateServerRequest req) {
+  public ResponseEntity<Server> createForm(@ModelAttribute CreateServerRequest req) {
     if (req.getCode() == null || req.getCode().isEmpty()) return ResponseEntity.badRequest().build();
     var s = new Server();
     s.setCode(req.getCode());
