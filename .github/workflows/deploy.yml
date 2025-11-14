@@ -92,11 +92,18 @@ jobs:
             elif [ -f /opt/happy4travian/docs/schema.sql ]; then
               SCHEMA_PATH=/opt/happy4travian/docs/schema.sql
             fi
-            if [ -n "$SCHEMA_PATH" ]; then
+            TABLES_COUNT=$(mysql -N -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME';")
+            echo "tables in $DB_NAME: $TABLES_COUNT"
+            if [ "$TABLES_COUNT" = "0" ] && [ -n "$SCHEMA_PATH" ]; then
+              echo "applying schema: $SCHEMA_PATH"
               mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$SCHEMA_PATH"
             else
-              echo "schema.sql not found under /opt/happy4travian"
-              find /opt/happy4travian -maxdepth 3 -name schema.sql || true
+              if [ -z "$SCHEMA_PATH" ]; then
+                echo "schema.sql not found under /opt/happy4travian"
+                find /opt/happy4travian -maxdepth 3 -name schema.sql || true
+              else
+                echo "skip schema apply (non-empty DB)"
+              fi
             fi
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES;"
       - name: Prepare and restart service
