@@ -119,6 +119,7 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
+            sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
             if [ -f /opt/happy4travian/happy4travian-backend-0.1.0.jar ]; then sudo mv /opt/happy4travian/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; fi
             echo "==> jar contents (controllers)"
             (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
@@ -149,6 +150,13 @@ jobs:
               journalctl -u happy4travian.service -n 200 --no-pager || true
               exit 1
             fi
+            echo "==> assert controllers present in remote jar"
+            set -e
+            for cls in TribeController.class GameAccountController.class VillageController.class TroopController.class ServerController.class HealthController.class DbController.class; do
+              if ! (jar tf /opt/happy4travian/happy4travian-backend.jar | grep -q "com/happy/travian/controller/${cls}"); then
+                echo "missing controller in jar: ${cls}"; journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1;
+              fi
+            done
       - name: Integration verify and seed sample
         uses: appleboy/ssh-action@v1.0.0
         with:
