@@ -140,10 +140,14 @@ def troops_params():
         return jsonify(base_data)
     def scale(d, k):
         out = {"version": d.get("version"), "speed": f"{k}x", "tribes": []}
+        spd_map = {1:1, 2:2, 3:2, 5:2, 10:4}
+        spd_factor = spd_map.get(k, 1)
         for t in d.get("tribes", []):
             tribe_out = {"tribeId": t.get("tribeId"), "tribeLabel": t.get("tribeLabel"), "units": []}
             for u in t.get("units", []):
                 u2 = dict(u)
+                if isinstance(u2.get("speed"), (int, float)):
+                    u2["speed"] = int(round(u2["speed"] * spd_factor))
                 if isinstance(u2.get("time"), (int, float)):
                     u2["time"] = int(round(u2["time"] / k))
                 if isinstance(u2.get("rs_time"), (int, float)):
