@@ -163,6 +163,11 @@ jobs:
       - name: Smoke test
         run: |
           set -e
-          code=$(curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health); echo "health:$code"; [ "$code" = "200" ]
-          db=$(curl -s http://47.99.88.168:8080/api/v1/db/ping); echo "db:$db"; [ "$db" = "ok" ]
-          for ep in servers tribes accounts; do c=$(curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/$ep); echo "$ep:$c"; [ "$c" = "200" ] || exit 1; done
+          attempt_health() { curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health || echo "000"; }
+          attempt_db() { curl -s http://47.99.88.168:8080/api/v1/db/ping || echo ""; }
+          attempt_ep() { curl -s -o /dev/null -w "%{http_code}" "http://47.99.88.168:8080/api/v1/$1" || echo "000"; }
+          for i in 1 2 3 4 5 6 7 8 9 10; do code=$(attempt_health); echo "health:$code"; [ "$code" = "200" ] && break; sleep 3; done; [ "$code" = "200" ]
+          for i in 1 2 3 4 5 6 7 8 9 10; do db=$(attempt_db); echo "db:$db"; [ -n "$db" ] && [ "$db" = "ok" ] && break; sleep 3; done; [ "$db" = "ok" ]
+          for ep in servers tribes accounts; do 
+            for i in 1 2 3 4 5 6 7 8 9 10; do c=$(attempt_ep "$ep"); echo "$ep:$c"; [ "$c" = "200" ] && break; sleep 3; done; [ "$c" = "200" ] || exit 1;
+          done
