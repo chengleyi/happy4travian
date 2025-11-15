@@ -3,7 +3,7 @@ Description=Happy4Travian Backend
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/happy4travian
+WorkingDirectory=/opt/happy4travian/backend_py
 EnvironmentFile=/etc/happy4travian/happy4travian.env
 ExecStart=/opt/happy4travian/venv/bin/gunicorn -w 2 -b 0.0.0.0:8080 app:app
 Restart=always
