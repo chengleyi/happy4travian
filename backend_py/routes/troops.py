@@ -116,6 +116,14 @@ def troops_params():
                 return jsonify(data)
         except Exception:
             continue
+    if request.args.get("debug") == "1":
+        info = {
+            "cwd": os.getcwd(),
+            "file": __file__,
+            "env_path": env_path,
+            "exists": {p: os.path.exists(p) for p in candidates}
+        }
+        return jsonify(info), 404
     try:
         url = os.getenv("TROOPS_PARAMS_URL") or "https://raw.githubusercontent.com/chengleyi/happy4travian/main/backend_py/data/troops_t4.6_1x.json"
         with urllib.request.urlopen(url, timeout=10) as r:
