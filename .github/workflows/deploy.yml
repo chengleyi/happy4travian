@@ -36,14 +36,14 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: docs/schema.sql
           target: /opt/happy4travian/
-      - name: Upload Python backend
+      - name: Upload Python backend (recursive)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: backend_py/*
+          source: backend_py/**
           target: /opt/happy4travian/backend_py/
       - name: Ensure app.py and requirements uploaded
         uses: appleboy/scp-action@v0.1.7
