@@ -95,6 +95,8 @@ jobs:
             sudo python3 -m venv /opt/happy4travian/venv
             /opt/happy4travian/venv/bin/pip install --upgrade pip
             ls -lah /opt/happy4travian || true
+            /opt/happy4travian/venv/bin/python -c "import sys; print(sys.version)" || true
+            /opt/happy4travian/venv/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
             if [ -f /opt/happy4travian/requirements.txt ]; then
               /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
             else
@@ -120,8 +122,8 @@ jobs:
             sudo journalctl -u happy4travian.service -n 200 --no-pager || true
             echo "==> ps gunicorn"
             ps aux | grep gunicorn || true
-            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health
-            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping
+            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health || true
+            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping || true
             sudo ls -lah /opt/happy4travian/app.log || true
             sudo tail -n 100 /opt/happy4travian/app.log || true
       - name: External health probe
