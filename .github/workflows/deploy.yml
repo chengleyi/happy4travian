@@ -36,33 +36,19 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: docs/schema.sql
           target: /opt/happy4travian/
-      - name: Upload Python backend (recursive)
+      - name: Archive backend
+        run: |
+          tar -czf backend_py.tar.gz backend_py
+          ls -lah backend_py.tar.gz
+      - name: Upload backend archive
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: backend_py/**
-          target: /opt/happy4travian/backend_py/
-      - name: Upload backend routes
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: backend_py/routes/**
-          target: /opt/happy4travian/backend_py/routes/
-      - name: Upload backend data
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: backend_py/data/**
-          target: /opt/happy4travian/backend_py/data/
+          source: backend_py.tar.gz
+          target: /opt/happy4travian/
       - name: Ensure app.py and requirements uploaded
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -108,6 +94,11 @@ jobs:
             set -e
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo mkdir -p /opt/happy4travian/backend_py
+            if [ -f /opt/happy4travian/backend_py.tar.gz ]; then
+              sudo rm -rf /opt/happy4travian/backend_py
+              sudo mkdir -p /opt/happy4travian/backend_py
+              sudo tar -xzf /opt/happy4travian/backend_py.tar.gz -C /opt/happy4travian
+            fi
             sudo systemctl stop happy4travian.service || true
             sudo yum install -y python3 python3-pip || true
             python3 -V || true
