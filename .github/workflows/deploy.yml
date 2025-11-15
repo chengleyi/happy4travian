@@ -44,7 +44,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py/*
-          target: /opt/happy4travian/
+          target: /opt/happy4travian/backend_py/
       - name: Ensure app.py and requirements uploaded
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -53,7 +53,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py/app.py
-          target: /opt/happy4travian/
+          target: /opt/happy4travian/backend_py/
       - name: Ensure requirements uploaded
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -62,7 +62,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py/requirements.txt
-          target: /opt/happy4travian/
+          target: /opt/happy4travian/backend_py/
       - name: DB preflight and create tables
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -89,12 +89,15 @@ jobs:
           script: |
             set -e
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
+            sudo mkdir -p /opt/happy4travian/backend_py
             sudo systemctl stop happy4travian.service || true
             sudo yum install -y python3 python3-pip || true
             python3 -V || true
             sudo python3 -m venv /opt/happy4travian/venv
             /opt/happy4travian/venv/bin/pip install --upgrade pip
             ls -lah /opt/happy4travian || true
+            ls -lah /opt/happy4travian/backend_py || true
+            grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
             /opt/happy4travian/venv/bin/python -c "import sys; print(sys.version)" || true
             /opt/happy4travian/venv/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
             if [ -f /opt/happy4travian/requirements.txt ]; then
