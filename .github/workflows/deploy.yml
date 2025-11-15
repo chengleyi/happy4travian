@@ -145,6 +145,15 @@ jobs:
             ps aux | grep gunicorn || true
             curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health || true
             curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping || true
+            echo "==> troops.py routes"
+            grep -n "troops/params" /opt/happy4travian/backend_py/routes/troops.py || true
+            grep -n "troops_params" /opt/happy4travian/backend_py/routes/system.py || true
+            echo "==> static data file"
+            ls -lah /opt/happy4travian/backend_py/data/troops_t4.6_1x.json || true
+            head -n 1 /opt/happy4travian/backend_py/data/troops_t4.6_1x.json || true
+            echo "==> local curl new endpoints"
+            curl -s -o /dev/null -w "tp:%{http_code}\n" http://127.0.0.1:8080/api/v1/troops/params || true
+            curl -s -o /dev/null -w "tpa:%{http_code}\n" http://127.0.0.1:8080/api/v1/troops_params || true
             sudo ls -lah /opt/happy4travian/app.log || true
             sudo tail -n 100 /opt/happy4travian/app.log || true
       - name: External health probe
@@ -156,6 +165,9 @@ jobs:
           curl -s -o /dev/null -w "tribes:%{http_code}\n" http://47.99.88.168:8080/api/v1/tribes || true
           curl -s -o /dev/null -w "accounts:%{http_code}\n" http://47.99.88.168:8080/api/v1/accounts || true
           curl -s -o /dev/null -w "villages:%{http_code}\n" http://47.99.88.168:8080/api/v1/villages || true
+          echo "==> external troops params"
+          curl -s -o /dev/null -w "tp:%{http_code}\n" http://47.99.88.168:8080/api/v1/troops/params || true
+          curl -s -o /dev/null -w "tpa:%{http_code}\n" http://47.99.88.168:8080/api/v1/troops_params || true
       - name: Smoke test
         run: |
           set -e
