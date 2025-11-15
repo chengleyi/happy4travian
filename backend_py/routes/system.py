@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from db import engine
+import os, json
 
 bp = Blueprint("system", __name__)
 
@@ -19,3 +20,14 @@ def db_ping():
         return "ok"
     except Exception:
         return "error"
+
+@bp.get("/api/v1/troops_params")
+def troops_params_alias():
+    try:
+        base = os.path.dirname(os.path.dirname(__file__))
+        p = os.path.abspath(os.path.join(base, "data", "troops_t4.6_1x.json"))
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception:
+        return jsonify({"error": "not_found"}), 404
