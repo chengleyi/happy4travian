@@ -12,12 +12,13 @@ def test_health():
 
 def test_end_to_end():
     suffix = str(int(time.time())) + str(random.randint(100,999))
+    short = str(random.randint(1000,9999))
     # servers
     rs = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None})
     assert rs.status_code == 200
     s = rs.json()
     # tribes
-    rt = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{suffix}", "name":"罗马"})
+    rt = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{short}", "name":"罗马"})
     assert rt.status_code == 200
     t = rt.json()
 
@@ -37,7 +38,7 @@ def test_end_to_end():
     v = rv.json()
 
     # alliances
-    ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{suffix}", "description": "test", "createdBy": 1})
+    ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{short}", "description": "test", "createdBy": 1})
     assert ral.status_code == 200
     al = ral.json()
     rm = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"})
