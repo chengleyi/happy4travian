@@ -95,10 +95,12 @@ def parse_upload_troops():
 
 @bp.get("/api/v1/troops/params")
 def troops_params():
-    version = request.args.get("version", "1.46")
-    speed_str = request.args.get("speed", "1x")
-    m = re.match(r"^(\d+)x$", speed_str)
-    speed = int(m.group(1)) if m else 1
+    debug = request.args.get("debug") == "1"
+    try:
+        version = request.args.get("version", "1.46")
+        speed_str = request.args.get("speed", "1x")
+        m = re.match(r"^(\d+)x$", speed_str)
+        speed = int(m.group(1)) if m else 1
     def load_base():
         env_path = os.getenv("TROOPS_PARAMS_PATH")
         if env_path and os.path.exists(env_path):
@@ -128,12 +130,12 @@ def troops_params():
                 return json.loads(txt)
         except Exception:
             return None
-    base_data = load_base()
-    if not base_data:
-        if request.args.get("debug") == "1":
-            info = {"cwd": os.getcwd()}
-            return jsonify(info), 404
-        return jsonify({"error": "not_found"}), 404
+        base_data = load_base()
+        if not base_data:
+            if debug:
+                info = {"cwd": os.getcwd()}
+                return jsonify(info), 404
+            return jsonify({"error": "not_found"}), 404
     if version != "1.46":
         return jsonify({"error": "not_found"}), 404
     if speed <= 1:
@@ -155,4 +157,8 @@ def troops_params():
                 tribe_out["units"].append(u2)
             out["tribes"].append(tribe_out)
         return out
-    return jsonify(scale(base_data, speed))
+        return jsonify(scale(base_data, speed))
+    except Exception as e:
+        if debug:
+            return jsonify({"error":"exception","type":type(e).__name__,"message":str(e)}), 500
+        return jsonify({"error":"server_error"}), 500
