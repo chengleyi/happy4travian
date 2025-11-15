@@ -119,6 +119,7 @@ jobs:
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
             SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+            TROOPS_PARAMS_PATH=/opt/happy4travian/backend_py/data/troops_t4.6_1x.json
             EOF'
             sudo systemctl daemon-reload
             sudo systemctl enable happy4travian.service

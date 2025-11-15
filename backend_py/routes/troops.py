@@ -94,12 +94,20 @@ def parse_upload_troops():
 
 @bp.get("/api/v1/troops/params")
 def troops_params():
+    env_path = os.getenv("TROOPS_PARAMS_PATH")
+    if env_path and os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                return jsonify(json.load(f))
+        except Exception:
+            pass
     candidates = []
     base = os.path.dirname(os.path.dirname(__file__))
     candidates.append(os.path.abspath(os.path.join(base, "data", "troops_t4.6_1x.json")))
     candidates.append(os.path.abspath(os.path.join(os.getcwd(), "backend_py", "data", "troops_t4.6_1x.json")))
     candidates.append(os.path.abspath(os.path.join(os.getcwd(), "data", "troops_t4.6_1x.json")))
     candidates.append("/opt/happy4travian/backend_py/data/troops_t4.6_1x.json")
+    candidates.append("/opt/happy4travian/backend_py/backend_py/data/troops_t4.6_1x.json")
     for p in candidates:
         try:
             if os.path.exists(p):
