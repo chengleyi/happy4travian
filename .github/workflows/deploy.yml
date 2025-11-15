@@ -22,6 +22,10 @@ jobs:
       - name: Build backend jar
         working-directory: backend
         run: mvn -B -DskipTests clean package org.springframework.boot:spring-boot-maven-plugin:3.3.4:repackage
+      - name: Verify controllers in built jar (local)
+        run: |
+          echo "==> list controller classes in jar"
+          (jar tf backend/target/happy4travian-backend-0.1.0.jar | grep com/happy/travian/controller || true)
       - name: Verify jar exists
         run: |
           ls -lah backend/target
@@ -126,14 +130,25 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service
-            sleep 2
+            for i in 1 2 3 4 5; do
+              if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then break; fi
+              sleep 2
+            done
             echo "==> systemctl status"
             sudo systemctl status happy4travian.service --no-pager || true
             echo "==> journalctl tail"
             journalctl -u happy4travian.service -n 200 --no-pager || true
             echo "==> listening sockets"
             (ss -ltnp || netstat -ltnp) | grep 8080 || true
-            curl -s http://127.0.0.1:8080/api/v1/health || true
+            for i in 1 2 3 4 5; do
+              if curl -s --fail http://127.0.0.1:8080/api/v1/health >/dev/null; then break; fi
+              sleep 3
+            done
+            if ! curl -s --fail http://127.0.0.1:8080/api/v1/db/ping >/dev/null; then
+              echo "DB ping failed, printing logs";
+              journalctl -u happy4travian.service -n 200 --no-pager || true
+              exit 1
+            fi
       - name: Integration verify and seed sample
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -163,7 +178,28 @@ jobs:
               fi
             fi
             curl -s http://127.0.0.1:8080/api/v1/servers || true
+            echo "==> verify other endpoints"
+            set +e
+            curl -s -o /dev/null -w "tribes:%{http_code}\n" http://127.0.0.1:8080/api/v1/tribes
+            curl -s -o /dev/null -w "accounts:%{http_code}\n" http://127.0.0.1:8080/api/v1/accounts
+            curl -s -o /dev/null -w "villages:%{http_code}\n" http://127.0.0.1:8080/api/v1/villages
+            curl -s -o /dev/null -w "troops-agg:%{http_code}\n" 'http://127.0.0.1:8080/api/v1/troops/aggregate?villageId=1'
+            RC_T=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/tribes)
+            RC_A=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/accounts)
+            RC_V=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/villages)
+            RC_G=$(curl -s -o /dev/null -w "%{http_code}" 'http://127.0.0.1:8080/api/v1/troops/aggregate?villageId=1')
+            if [ "$RC_T" != "200" ] || [ "$RC_A" != "200" ] || [ "$RC_V" != "200" ]; then
+              echo "one or more endpoints missing (404). printing jar controllers and logs";
+              (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
+              journalctl -u happy4travian.service -n 300 --no-pager || true
+              exit 1
+            fi
       - name: External health probe
         run: |
           echo "==> probe from runner"
           curl -s -o /dev/null -w "HTTP:%{http_code} BYTES:%{size_download}\n" http://47.99.88.168:8080/api/v1/health || true
+          curl -s -o /dev/null -w "HTTP:%{http_code} BYTES:%{size_download}\n" http://47.99.88.168:8080/api/v1/db/ping || true
+          echo "==> external endpoints"
+          curl -s -o /dev/null -w "tribes:%{http_code}\n" http://47.99.88.168:8080/api/v1/tribes || true
+          curl -s -o /dev/null -w "accounts:%{http_code}\n" http://47.99.88.168:8080/api/v1/accounts || true
+          curl -s -o /dev/null -w "villages:%{http_code}\n" http://47.99.88.168:8080/api/v1/villages || true
