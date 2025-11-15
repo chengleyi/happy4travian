@@ -2,6 +2,8 @@ import re
 from flask import Blueprint, jsonify, request
 from db import SessionLocal
 from models import TroopCount, TroopType, Village, GameAccount
+import os
+import json
 
 bp = Blueprint("troops", __name__)
 
@@ -88,3 +90,14 @@ def parse_upload_troops():
                 db.add(TroopCount(village_id=villageId, troop_type_id=int(tid), count=int(cnt)))
         db.commit()
         return jsonify({"parsed": parsed, "written": True})
+
+@bp.get("/api/v1/troops/params")
+def troops_params():
+    try:
+        base = os.path.dirname(os.path.dirname(__file__))
+        p = os.path.abspath(os.path.join(base, "data", "troops_t4.6_1x.json"))
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception:
+        return jsonify({"error": "not_found"}), 404
