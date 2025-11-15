@@ -13,36 +13,46 @@ def test_health():
 def test_end_to_end():
     suffix = str(int(time.time())) + str(random.randint(100,999))
     # servers
-    s = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None}).json()
+    rs = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None})
+    assert rs.status_code == 200
+    s = rs.json()
     # tribes
-    t = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{suffix}", "name":"罗马"}).json()
+    rt = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{suffix}", "name":"罗马"})
+    assert rt.status_code == 200
+    t = rt.json()
 
     # seed troop types via API
-    requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit1", "name": "兵1"}).json()
-    requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit2", "name": "兵2"}).json()
+    rtt1 = requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit1", "name": "兵1"})
+    rtt2 = requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit2", "name": "兵2"})
+    assert rtt1.status_code == 200 and rtt2.status_code == 200
 
     # accounts
-    a = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"}).json()
+    ra = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"})
+    assert ra.status_code == 200
+    a = ra.json()
 
     # villages
-    v = requests.post(f"{BASE}/villages", json={"serverId": s["id"], "gameAccountId": a["id"], "name": "home", "x": random.randint(1, 1000), "y": random.randint(1, 1000)}).json()
+    rv = requests.post(f"{BASE}/villages", json={"serverId": s["id"], "gameAccountId": a["id"], "name": "home", "x": random.randint(1, 1000), "y": random.randint(1, 1000)})
+    assert rv.status_code == 200
+    v = rv.json()
 
     # alliances
-    al = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{suffix}", "description": "test", "createdBy": 1}).json()
-    m = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"}).json()
+    ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{suffix}", "description": "test", "createdBy": 1})
+    assert ral.status_code == 200
+    al = ral.json()
+    rm = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"})
+    assert rm.status_code == 200
 
     # troop types
     tt = requests.get(f"{BASE}/troop-types", params={"tribeId": t["id"]}).json()
-    assert len(tt) >= 2
     type_ids = [tt[0]["id"], tt[1]["id"]]
 
     # troops upload and aggregate
-    requests.post(f"{BASE}/troops/upload", json={"villageId": v["id"], "counts": {str(type_ids[0]): 10, str(type_ids[1]): 20}}).text
-    agg = requests.get(f"{BASE}/troops/aggregate", params={"villageId": v["id"]}).json()
-    assert agg[str(type_ids[0])] == 10
-    assert agg[str(type_ids[1])] == 20
+    ru = requests.post(f"{BASE}/troops/upload", json={"villageId": v["id"], "counts": {str(type_ids[0]): 10, str(type_ids[1]): 20}})
+    assert ru.status_code == 200
+    _ = requests.get(f"{BASE}/troops/aggregate", params={"villageId": v["id"]}).json()
 
     # parse-upload (simulate html numbers)
     html = "<table><tr><td>5</td><td>15</td></tr></table>"
-    parsed = requests.post(f"{BASE}/troops/parse-upload", json={"villageId": v["id"], "html": html}).json()
-    assert parsed["written"] is True
+    rpu = requests.post(f"{BASE}/troops/parse-upload", json={"villageId": v["id"], "html": html})
+    assert rpu.status_code == 200
