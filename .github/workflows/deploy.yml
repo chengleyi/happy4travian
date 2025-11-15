@@ -45,6 +45,24 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py/**
           target: /opt/happy4travian/backend_py/
+      - name: Upload backend routes
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/routes/**
+          target: /opt/happy4travian/backend_py/routes/
+      - name: Upload backend data
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/data/**
+          target: /opt/happy4travian/backend_py/data/
       - name: Ensure app.py and requirements uploaded
         uses: appleboy/scp-action@v0.1.7
         with:
