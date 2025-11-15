@@ -1,12 +1,7 @@
 import os
-import time
 import requests
-import pymysql
 
 BASE = os.getenv("BASE_URL", "http://localhost:8080/api/v1")
-
-def _db_conn():
-    return pymysql.connect(host="127.0.0.1", port=3306, user="root", password=os.getenv("MYSQL_ROOT_PASSWORD", "mysql"), database="happy4travian")
 
 def test_health():
     r = requests.get(f"{BASE}/health")
@@ -19,12 +14,9 @@ def test_end_to_end():
     # tribes
     t = requests.post(f"{BASE}/tribes", json={"code":"roman", "name":"罗马"}).json()
 
-    # seed a few troop types for tribe t
-    with _db_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("INSERT INTO troop_types(tribe_id, code, name) VALUES(%s,%s,%s)", (t["id"], "unit1", "兵1"))
-            cur.execute("INSERT INTO troop_types(tribe_id, code, name) VALUES(%s,%s,%s)", (t["id"], "unit2", "兵2"))
-            conn.commit()
+    # seed troop types via API
+    requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit1", "name": "兵1"}).json()
+    requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit2", "name": "兵2"}).json()
 
     # accounts
     a = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": "tester"}).json()

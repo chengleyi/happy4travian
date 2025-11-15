@@ -42,6 +42,21 @@ def list_troop_types():
             for r in rows
         ])
 
+@bp.post("/api/v1/troop-types")
+def create_troop_type():
+    data = request.get_json(force=True)
+    tribeId = data.get("tribeId")
+    code = data.get("code")
+    name = data.get("name")
+    if not tribeId or not code or not name:
+        return jsonify({"error":"bad_request"}), 400
+    with SessionLocal() as db:
+        tt = TroopType(tribe_id=int(tribeId), code=str(code), name=str(name))
+        db.add(tt)
+        db.commit()
+        db.refresh(tt)
+        return jsonify({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
+
 def _parse_travian_html_to_counts(html: str, tribe_types: list):
     text = re.sub(r"<[^>]+>", " ", html)
     nums = [int(x) for x in re.findall(r"\b\d+\b", text)]
