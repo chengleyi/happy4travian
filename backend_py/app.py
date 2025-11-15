@@ -1,14 +1,17 @@
 import os
 import re
+import logging
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Optional
 
-from fastapi import FastAPI, Depends, Query, Body
-from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Date, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from sqlalchemy import create_engine, Column, Integer, BigInteger, String, Date
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-app = FastAPI()
+app = Flask(__name__)
+CORS(app, origins=["https://happy4travian.com", "https://www.happy4travian.com"], methods=["GET","POST","PUT","DELETE","OPTIONS"], allow_headers=["*"])
+logging.basicConfig(filename="app.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 jdbc = os.getenv("SPRING_DATASOURCE_URL", "")
 user = os.getenv("SPRING_DATASOURCE_USERNAME", "")
@@ -61,39 +64,17 @@ class TroopCount(Base):
     troop_type_id = Column(Integer, nullable=False)
     count = Column(BigInteger, nullable=False)
 
-def get_db() -> Session:
-    db = SessionLocal()
+@app.before_request
+def _log_before():
+    pass
+
+@app.after_request
+def _log_after(response):
     try:
-        yield db
-    finally:
-        db.close()
-
-class CreateServerRequest(BaseModel):
-    code: str
-    region: Optional[str] = None
-    speed: Optional[str] = None
-    startDate: Optional[str] = None
-
-class CreateTribeRequest(BaseModel):
-    code: str
-    name: str
-
-class CreateGameAccountRequest(BaseModel):
-    userId: int
-    serverId: int
-    tribeId: int
-    inGameName: str
-
-class CreateVillageRequest(BaseModel):
-    serverId: int
-    gameAccountId: int
-    name: str
-    x: int
-    y: int
-
-class UploadTroopsRequest(BaseModel):
-    villageId: int
-    counts: Dict[int, int]
+        logging.info("api %s %s status=%s", request.method, request.full_path, response.status_code)
+    except Exception:
+        pass
+    return response
 
 @app.get("/api/v1/health")
 def health():
@@ -104,129 +85,158 @@ def healthz():
     return "ok"
 
 @app.get("/api/v1/db/ping")
-def db_ping(db: Session = Depends(get_db)):
+def db_ping():
     try:
-        db.execute("SELECT 1")
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
         return "ok"
     except Exception:
         return "error"
 
 @app.get("/api/v1/servers")
-def list_servers(db: Session = Depends(get_db)):
-    rows = db.query(Server).all()
-    return [
-        {
-            "id": r.id,
-            "code": r.code,
-            "region": r.region,
-            "speed": r.speed,
-            "startDate": r.start_date.isoformat() if r.start_date else None,
-            "status": r.status,
-        }
-        for r in rows
-    ]
+def list_servers():
+    with SessionLocal() as db:
+        rows = db.query(Server).all()
+        return jsonify([
+            {
+                "id": r.id,
+                "code": r.code,
+                "region": r.region,
+                "speed": r.speed,
+                "startDate": r.start_date.isoformat() if r.start_date else None,
+                "status": r.status,
+            }
+            for r in rows
+        ])
 
 @app.post("/api/v1/servers")
-def create_server(req: CreateServerRequest, db: Session = Depends(get_db)):
-    if not req.code:
-        return {"error": "bad_request"}
+def create_server():
+    data = request.get_json(force=True)
+    code = data.get("code")
+    region = data.get("region")
+    speed = data.get("speed")
+    startDate = data.get("startDate")
+    if not code:
+        return jsonify({"error":"bad_request"}), 400
     s = Server()
-    s.code = req.code
-    s.region = req.region
-    s.speed = req.speed
-    s.start_date = date.fromisoformat(req.startDate) if req.startDate else None
+    s.code = code
+    s.region = region
+    s.speed = speed
+    s.start_date = date.fromisoformat(startDate) if startDate else None
     s.status = "active"
-    db.add(s)
-    db.commit()
-    db.refresh(s)
-    return {
-        "id": s.id,
-        "code": s.code,
-        "region": s.region,
-        "speed": s.speed,
-        "startDate": s.start_date.isoformat() if s.start_date else None,
-        "status": s.status,
-    }
+    with SessionLocal() as db:
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+        return jsonify({
+            "id": s.id,
+            "code": s.code,
+            "region": s.region,
+            "speed": s.speed,
+            "startDate": s.start_date.isoformat() if s.start_date else None,
+            "status": s.status,
+        })
 
 @app.get("/api/v1/tribes")
-def list_tribes(db: Session = Depends(get_db)):
-    rows = db.query(Tribe).all()
-    return [{"id": r.id, "code": r.code, "name": r.name} for r in rows]
+def list_tribes():
+    with SessionLocal() as db:
+        rows = db.query(Tribe).all()
+        return jsonify([{"id": r.id, "code": r.code, "name": r.name} for r in rows])
 
 @app.post("/api/v1/tribes")
-def create_tribe(req: CreateTribeRequest, db: Session = Depends(get_db)):
-    if not req.code or not req.name:
-        return {"error": "bad_request"}
-    t = Tribe(code=req.code, name=req.name)
-    db.add(t)
-    db.commit()
-    db.refresh(t)
-    return {"id": t.id, "code": t.code, "name": t.name}
+def create_tribe():
+    data = request.get_json(force=True)
+    code = data.get("code")
+    name = data.get("name")
+    if not code or not name:
+        return jsonify({"error":"bad_request"}), 400
+    t = Tribe(code=code, name=name)
+    with SessionLocal() as db:
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return jsonify({"id": t.id, "code": t.code, "name": t.name})
 
 @app.get("/api/v1/accounts")
-def list_accounts(userId: Optional[int] = Query(None), serverId: Optional[int] = Query(None), db: Session = Depends(get_db)):
-    q = db.query(GameAccount)
-    if userId is not None:
-        q = q.filter(GameAccount.user_id == userId)
-    if serverId is not None:
-        q = q.filter(GameAccount.server_id == serverId)
-    rows = q.all()
-    return [
-        {
-            "id": r.id,
-            "userId": r.user_id,
-            "serverId": r.server_id,
-            "tribeId": r.tribe_id,
-            "inGameName": r.in_game_name,
-        }
-        for r in rows
-    ]
+def list_accounts():
+    userId = request.args.get("userId", type=int)
+    serverId = request.args.get("serverId", type=int)
+    with SessionLocal() as db:
+        q = db.query(GameAccount)
+        if userId is not None:
+            q = q.filter(GameAccount.user_id == userId)
+        if serverId is not None:
+            q = q.filter(GameAccount.server_id == serverId)
+        rows = q.all()
+        return jsonify([
+            {
+                "id": r.id,
+                "userId": r.user_id,
+                "serverId": r.server_id,
+                "tribeId": r.tribe_id,
+                "inGameName": r.in_game_name,
+            }
+            for r in rows
+        ])
 
 @app.post("/api/v1/accounts")
-def create_account(req: CreateGameAccountRequest, db: Session = Depends(get_db)):
-    a = GameAccount(user_id=req.userId, server_id=req.serverId, tribe_id=req.tribeId, in_game_name=req.inGameName)
-    db.add(a)
-    db.commit()
-    db.refresh(a)
-    return {"id": a.id, "userId": a.user_id, "serverId": a.server_id, "tribeId": a.tribe_id, "inGameName": a.in_game_name}
+def create_account():
+    data = request.get_json(force=True)
+    a = GameAccount(user_id=int(data.get("userId")), server_id=int(data.get("serverId")), tribe_id=int(data.get("tribeId")), in_game_name=str(data.get("inGameName")))
+    with SessionLocal() as db:
+        db.add(a)
+        db.commit()
+        db.refresh(a)
+        return jsonify({"id": a.id, "userId": a.user_id, "serverId": a.server_id, "tribeId": a.tribe_id, "inGameName": a.in_game_name})
 
 @app.get("/api/v1/villages")
-def list_villages(serverId: Optional[int] = Query(None), gameAccountId: Optional[int] = Query(None), db: Session = Depends(get_db)):
-    q = db.query(Village)
-    if serverId is not None:
-        q = q.filter(Village.server_id == serverId)
-    if gameAccountId is not None:
-        q = q.filter(Village.game_account_id == gameAccountId)
-    rows = q.all()
-    return [
-        {
-            "id": r.id,
-            "serverId": r.server_id,
-            "gameAccountId": r.game_account_id,
-            "name": r.name,
-            "x": r.x,
-            "y": r.y,
-        }
-        for r in rows
-    ]
+def list_villages():
+    serverId = request.args.get("serverId", type=int)
+    gameAccountId = request.args.get("gameAccountId", type=int)
+    with SessionLocal() as db:
+        q = db.query(Village)
+        if serverId is not None:
+            q = q.filter(Village.server_id == serverId)
+        if gameAccountId is not None:
+            q = q.filter(Village.game_account_id == gameAccountId)
+        rows = q.all()
+        return jsonify([
+            {
+                "id": r.id,
+                "serverId": r.server_id,
+                "gameAccountId": r.game_account_id,
+                "name": r.name,
+                "x": r.x,
+                "y": r.y,
+            }
+            for r in rows
+        ])
 
 @app.post("/api/v1/villages")
-def create_village(req: CreateVillageRequest, db: Session = Depends(get_db)):
-    v = Village(server_id=req.serverId, game_account_id=req.gameAccountId, name=req.name, x=req.x, y=req.y)
-    db.add(v)
-    db.commit()
-    db.refresh(v)
-    return {"id": v.id, "serverId": v.server_id, "gameAccountId": v.game_account_id, "name": v.name, "x": v.x, "y": v.y}
+def create_village():
+    data = request.get_json(force=True)
+    v = Village(server_id=int(data.get("serverId")), game_account_id=int(data.get("gameAccountId")), name=str(data.get("name")), x=int(data.get("x")), y=int(data.get("y")))
+    with SessionLocal() as db:
+        db.add(v)
+        db.commit()
+        db.refresh(v)
+        return jsonify({"id": v.id, "serverId": v.server_id, "gameAccountId": v.game_account_id, "name": v.name, "x": v.x, "y": v.y})
 
 @app.post("/api/v1/troops/upload")
-def upload_troops(req: UploadTroopsRequest, db: Session = Depends(get_db)):
-    for k, v in req.counts.items():
-        tc = TroopCount(village_id=req.villageId, troop_type_id=int(k), count=int(v))
-        db.add(tc)
-    db.commit()
+def upload_troops():
+    data = request.get_json(force=True)
+    villageId = int(data.get("villageId"))
+    counts = data.get("counts", {})
+    with SessionLocal() as db:
+        for k, v in counts.items():
+            tc = TroopCount(village_id=villageId, troop_type_id=int(k), count=int(v))
+            db.add(tc)
+        db.commit()
     return "ok"
 
 @app.get("/api/v1/troops/aggregate")
-def troops_aggregate(villageId: int = Query(...), db: Session = Depends(get_db)):
-    rows = db.query(TroopCount).filter(TroopCount.village_id == villageId).all()
-    return {int(r.troop_type_id): int(r.count) for r in rows}
+def troops_aggregate():
+    villageId = request.args.get("villageId", type=int)
+    with SessionLocal() as db:
+        rows = db.query(TroopCount).filter(TroopCount.village_id == villageId).all()
+        return jsonify({int(r.troop_type_id): int(r.count) for r in rows})
