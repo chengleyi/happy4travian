@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from db import engine
-import os, json
+import os, json, urllib.request
 
 bp = Blueprint("system", __name__)
 
@@ -37,4 +37,12 @@ def troops_params_alias():
                 return jsonify(data)
         except Exception:
             continue
+    try:
+        url = os.getenv("TROOPS_PARAMS_URL") or "https://raw.githubusercontent.com/chengleyi/happy4travian/main/backend_py/data/troops_t4.6_1x.json"
+        with urllib.request.urlopen(url, timeout=10) as r:
+            txt = r.read().decode("utf-8")
+            data = json.loads(txt)
+            return jsonify(data)
+    except Exception:
+        pass
     return jsonify({"error": "not_found"}), 404
