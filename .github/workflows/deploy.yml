@@ -121,7 +121,22 @@ jobs:
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo systemctl stop happy4travian.service || true
             sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
-            if [ -f /tmp/happy4travian-backend-0.1.0.jar ]; then sudo mv /tmp/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; else echo "uploaded jar not found under /tmp"; ls -lah /tmp; exit 1; fi
+            echo "==> locating uploaded jar under /tmp"
+            JAR_PATH=""
+            if [ -f /tmp/happy4travian-backend-0.1.0.jar ]; then
+              JAR_PATH=/tmp/happy4travian-backend-0.1.0.jar
+            elif [ -f /tmp/backend/target/happy4travian-backend-0.1.0.jar ]; then
+              JAR_PATH=/tmp/backend/target/happy4travian-backend-0.1.0.jar
+            elif [ -f /tmp/backend/happy4travian-backend-0.1.0.jar ]; then
+              JAR_PATH=/tmp/backend/happy4travian-backend-0.1.0.jar
+            else
+              JAR_PATH=$(find /tmp -maxdepth 3 -name happy4travian-backend-0.1.0.jar | head -n 1 || true)
+            fi
+            if [ -z "$JAR_PATH" ] || [ ! -f "$JAR_PATH" ]; then
+              echo "uploaded jar not found under /tmp"; ls -lah /tmp; ls -lah /tmp/backend || true; exit 1;
+            fi
+            echo "moving $JAR_PATH to /opt/happy4travian/happy4travian-backend.jar"
+            sudo mv "$JAR_PATH" /opt/happy4travian/happy4travian-backend.jar
             ls -lah /opt/happy4travian
             test -f /opt/happy4travian/happy4travian-backend.jar
             echo "==> jar contents (controllers)"
