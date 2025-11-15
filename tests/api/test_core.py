@@ -17,6 +17,11 @@ def test_end_to_end():
     rs = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None})
     assert rs.status_code == 200
     s = rs.json()
+    # users
+    ru = requests.post(f"{BASE}/users", json={"nickname": f"ci-{short}"})
+    assert ru.status_code == 200
+    user = ru.json()
+
     # tribes
     rt = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{short}", "name":"罗马"})
     assert rt.status_code == 200
@@ -28,7 +33,7 @@ def test_end_to_end():
     assert rtt1.status_code == 200 and rtt2.status_code == 200
 
     # accounts
-    ra = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"})
+    ra = requests.post(f"{BASE}/accounts", json={"userId": user["id"], "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"})
     assert ra.status_code == 200
     a = ra.json()
 
@@ -38,7 +43,7 @@ def test_end_to_end():
     v = rv.json()
 
     # alliances
-    ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{short}", "description": "test", "createdBy": 1})
+    ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{short}", "description": "test", "createdBy": user["id"]})
     assert ral.status_code == 200
     al = ral.json()
     rm = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"})

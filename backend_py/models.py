@@ -1,6 +1,17 @@
 from sqlalchemy import Column, Integer, BigInteger, String, Date, DateTime
 from db import Base
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    nickname = Column(String(64))
+    wechat_openid = Column(String(64))
+    email = Column(String(128))
+    password_hash = Column(String(128))
+    lang = Column(String(8))
+    status = Column(String(16))
+    created_at = Column(DateTime)
+
 class Server(Base):
     __tablename__ = "servers"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
