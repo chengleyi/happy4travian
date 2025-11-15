@@ -138,3 +138,9 @@ jobs:
           curl -s -o /dev/null -w "tribes:%{http_code}\n" http://47.99.88.168:8080/api/v1/tribes || true
           curl -s -o /dev/null -w "accounts:%{http_code}\n" http://47.99.88.168:8080/api/v1/accounts || true
           curl -s -o /dev/null -w "villages:%{http_code}\n" http://47.99.88.168:8080/api/v1/villages || true
+      - name: Smoke test
+        run: |
+          set -e
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health); echo "health:$code"; [ "$code" = "200" ]
+          db=$(curl -s http://47.99.88.168:8080/api/v1/db/ping); echo "db:$db"; [ "$db" = "ok" ]
+          for ep in servers tribes accounts; do c=$(curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/$ep); echo "$ep:$c"; [ "$c" = "200" ] || exit 1; done
