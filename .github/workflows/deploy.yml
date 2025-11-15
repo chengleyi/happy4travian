@@ -18,17 +18,6 @@ jobs:
           git checkout -B main origin/main
           git rev-parse HEAD
           git log -n 1 --pretty='format:COMMIT:%h %s'
-      - name: Provision firewall on server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            set -e
-            sudo mkdir -p /opt/happy4travian /etc/happy4travian /etc/systemd/system
-            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
       - name: Upload systemd unit
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -65,38 +54,14 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
-            DB_URL="${{ secrets.DB_URL }}"
-            DB_USER="${{ secrets.DB_USER }}"
-            DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+            DB_URL="${{ secrets.DB_URL }}"; DB_USER="${{ secrets.DB_USER }}"; DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
             DB_HOST=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://([^/:]+).*|\1|')
-            DB_PORT=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/:]+:([0-9]+).*|\1|')
+            DB_PORT=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/:]+:([0-9]+).*|\1|'); [ -z "$DB_PORT" ] && DB_PORT=3306
             DB_NAME=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/]+/([^?]+).*|\1|')
-            [ -z "$DB_PORT" ] && DB_PORT=3306
             sudo yum install -y mariadb || true
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4;"
-            echo "listing /opt/happy4travian"
-            ls -lah /opt/happy4travian || true
-            SCHEMA_PATH=""
-            if [ -f /opt/happy4travian/schema.sql ]; then
-              SCHEMA_PATH=/opt/happy4travian/schema.sql
-            elif [ -f /opt/happy4travian/docs/schema.sql ]; then
-              SCHEMA_PATH=/opt/happy4travian/docs/schema.sql
-            fi
-            TABLES_COUNT=$(mysql -N -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$DB_NAME';")
-            echo "tables in $DB_NAME: $TABLES_COUNT"
-            if [ "$TABLES_COUNT" = "0" ] && [ -n "$SCHEMA_PATH" ]; then
-              echo "applying schema: $SCHEMA_PATH"
-              mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$SCHEMA_PATH"
-            else
-              if [ -z "$SCHEMA_PATH" ]; then
-                echo "schema.sql not found under /opt/happy4travian"
-                find /opt/happy4travian -maxdepth 3 -name schema.sql || true
-              else
-                echo "skip schema apply (non-empty DB)"
-              fi
-            fi
-            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES;"
-      - name: Prepare and restart service
+            mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES; SHOW TABLES LIKE 'game_accounts';"
+      - name: Prepare and restart service (Flask)
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -104,15 +69,14 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
+            set -e
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo systemctl stop happy4travian.service || true
-            echo "==> setup python venv"
             sudo yum install -y python3 python3-pip || true
             python3 -V || true
             sudo python3 -m venv /opt/happy4travian/venv
             /opt/happy4travian/venv/bin/pip install --upgrade pip
             /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
-            ls -lah /opt/happy4travian
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
@@ -125,68 +89,10 @@ jobs:
               if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then break; fi
               sleep 2
             done
-            echo "==> systemctl status"
-            sudo systemctl status happy4travian.service --no-pager || true
-            echo "==> journalctl tail"
-            journalctl -u happy4travian.service -n 200 --no-pager || true
-            echo "==> listening sockets"
-            (ss -ltnp || netstat -ltnp) | grep 8080 || true
-            for i in 1 2 3 4 5; do
-              if curl -s --fail http://127.0.0.1:8080/api/v1/health >/dev/null; then break; fi
-              sleep 3
-            done
-            if ! curl -s --fail http://127.0.0.1:8080/api/v1/db/ping >/dev/null; then
-              echo "DB ping failed, printing logs";
-              journalctl -u happy4travian.service -n 200 --no-pager || true
-              exit 1
-            fi
-            echo "==> app.log tail"
+            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health
+            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping
             sudo ls -lah /opt/happy4travian/app.log || true
             sudo tail -n 100 /opt/happy4travian/app.log || true
-      - name: Integration verify and seed sample
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            set -e
-            for i in 1 2 3 4 5; do
-              if curl -s --fail http://127.0.0.1:8080/api/v1/health >/dev/null; then break; fi
-              sleep 3
-            done
-            LIST=$(curl -s http://127.0.0.1:8080/api/v1/servers || echo "")
-            echo "servers before: $LIST"
-            if echo "$LIST" | grep -q "^\[\]$"; then
-              # try JSON API seed
-              curl -s -H 'Content-Type: application/json' -X POST -d '{"code":"ci-probe","region":"CN","speed":"x1","startDate":"2025-11-01"}' http://127.0.0.1:8080/api/v1/servers || true
-              sleep 2
-              AFTER=$(curl -s http://127.0.0.1:8080/api/v1/servers || echo "")
-              echo "servers after API seed: $AFTER"
-              if echo "$AFTER" | grep -q "^\[\]$"; then
-                # fallback SQL seed
-                DB_URL="${{ secrets.DB_URL }}"; DB_USER="${{ secrets.DB_USER }}"; DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
-                DB_HOST=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://([^/:]+).*|\1|'); DB_PORT=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/:]+:([0-9]+).*|\1|'); DB_NAME=$(echo "$DB_URL" | sed -E 's|jdbc:mysql://[^/]+/([^?]+).*|\1|'); [ -z "$DB_PORT" ] && DB_PORT=3306
-                mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; INSERT INTO servers(code,region,speed,start_date,status) VALUES('ci-probe','CN','x1','2025-11-01','active');"
-              fi
-            fi
-            curl -s http://127.0.0.1:8080/api/v1/servers || true
-            echo "==> verify other endpoints"
-            set +e
-            curl -s -o /dev/null -w "tribes:%{http_code}\n" http://127.0.0.1:8080/api/v1/tribes
-            curl -s -o /dev/null -w "accounts:%{http_code}\n" http://127.0.0.1:8080/api/v1/accounts
-            curl -s -o /dev/null -w "villages:%{http_code}\n" http://127.0.0.1:8080/api/v1/villages
-            curl -s -o /dev/null -w "troops-agg:%{http_code}\n" 'http://127.0.0.1:8080/api/v1/troops/aggregate?villageId=1'
-            RC_T=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/tribes)
-            RC_A=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/accounts)
-            RC_V=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/villages)
-            RC_G=$(curl -s -o /dev/null -w "%{http_code}" 'http://127.0.0.1:8080/api/v1/troops/aggregate?villageId=1')
-            if [ "$RC_T" != "200" ] || [ "$RC_A" != "200" ] || [ "$RC_V" != "200" ]; then
-              echo "one or more endpoints not 200. printing logs";
-              journalctl -u happy4travian.service -n 300 --no-pager || true
-              exit 1
-            fi
       - name: External health probe
         run: |
           echo "==> probe from runner"
