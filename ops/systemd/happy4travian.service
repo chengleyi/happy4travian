@@ -5,7 +5,7 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/happy4travian
 EnvironmentFile=/etc/happy4travian/happy4travian.env
-ExecStart=/usr/bin/java -jar /opt/happy4travian/happy4travian-backend.jar
+ExecStart=/opt/happy4travian/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8080
 Restart=always
 RestartSec=5
 User=root

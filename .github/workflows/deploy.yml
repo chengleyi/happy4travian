@@ -79,6 +79,15 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: docs/schema.sql
           target: /opt/happy4travian/
+      - name: Upload Python backend
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/*
+          target: /opt/happy4travian/
       - name: DB preflight and create tables
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -146,6 +155,12 @@ jobs:
             fi
             echo "moving $JAR_PATH to /opt/happy4travian/happy4travian-backend.jar"
             sudo mv "$JAR_PATH" /opt/happy4travian/happy4travian-backend.jar
+            echo "==> setup python venv"
+            sudo yum install -y python3 python3-pip || true
+            python3 -V || true
+            sudo python3 -m venv /opt/happy4travian/venv
+            /opt/happy4travian/venv/bin/pip install --upgrade pip
+            /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
             ls -lah /opt/happy4travian
             test -f /opt/happy4travian/happy4travian-backend.jar
             echo "==> jar contents (controllers)"
