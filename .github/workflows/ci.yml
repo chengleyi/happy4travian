@@ -29,6 +29,14 @@ jobs:
         run: |
           docker compose -f docker-compose.ci.yml up -d --build
 
+      - name: Import schema explicitly
+        run: |
+          for i in {1..40}; do
+            if docker compose -f docker-compose.ci.yml exec -T mysql mysqladmin ping -hmysql -uroot -p$MYSQL_ROOT_PASSWORD --silent; then break; fi
+            sleep 3
+          done
+          docker compose -f docker-compose.ci.yml exec -T mysql sh -lc "mysql -uroot -p$MYSQL_ROOT_PASSWORD happy4travian < /docker-entrypoint-initdb.d/001_schema.sql"
+
       - name: Wait for backend health
         run: |
           for i in {1..60}; do
