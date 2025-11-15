@@ -45,6 +45,24 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py/*
           target: /opt/happy4travian/
+      - name: Ensure app.py and requirements uploaded
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/app.py
+          target: /opt/happy4travian/
+      - name: Ensure requirements uploaded
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/requirements.txt
+          target: /opt/happy4travian/
       - name: DB preflight and create tables
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -76,7 +94,13 @@ jobs:
             python3 -V || true
             sudo python3 -m venv /opt/happy4travian/venv
             /opt/happy4travian/venv/bin/pip install --upgrade pip
-            /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
+            ls -lah /opt/happy4travian || true
+            if [ -f /opt/happy4travian/requirements.txt ]; then
+              /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
+            else
+              echo "requirements.txt not found, installing packages directly"
+              /opt/happy4travian/venv/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==2.0.36 pymysql==1.1.1 flask-cors==4.0.0
+            fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
