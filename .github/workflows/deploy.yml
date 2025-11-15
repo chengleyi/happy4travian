@@ -51,7 +51,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend/target/happy4travian-backend-0.1.0.jar
-          target: /opt/happy4travian/
+          target: /tmp/
       - name: Upload systemd unit
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -119,8 +119,11 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
+            sudo systemctl stop happy4travian.service || true
             sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
-            if [ -f /opt/happy4travian/happy4travian-backend-0.1.0.jar ]; then sudo mv /opt/happy4travian/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; fi
+            if [ -f /tmp/happy4travian-backend-0.1.0.jar ]; then sudo mv /tmp/happy4travian-backend-0.1.0.jar /opt/happy4travian/happy4travian-backend.jar; else echo "uploaded jar not found under /tmp"; ls -lah /tmp; exit 1; fi
+            ls -lah /opt/happy4travian
+            test -f /opt/happy4travian/happy4travian-backend.jar
             echo "==> jar contents (controllers)"
             (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
