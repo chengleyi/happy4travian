@@ -14,11 +14,15 @@ public class VillageController {
   public VillageController(VillageRepository repo) { this.repo = repo; }
 
   @GetMapping
-  public List<Village> list(@RequestParam(required = false) Long serverId,
-                            @RequestParam(required = false) Long gameAccountId) {
-    if (serverId != null) return repo.findByServerId(serverId);
-    if (gameAccountId != null) return repo.findByGameAccountId(gameAccountId);
-    return repo.findAll();
+  public ResponseEntity<List<Village>> list(@RequestParam(required = false) Long serverId,
+                                            @RequestParam(required = false) Long gameAccountId) {
+    try {
+      if (serverId != null) return ResponseEntity.ok(repo.findByServerId(serverId));
+      if (gameAccountId != null) return ResponseEntity.ok(repo.findByGameAccountId(gameAccountId));
+      return ResponseEntity.ok(repo.findAll());
+    } catch (Exception e) {
+      return ResponseEntity.ok(List.of());
+    }
   }
 
   @PostMapping

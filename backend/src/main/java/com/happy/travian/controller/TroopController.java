@@ -27,12 +27,16 @@ public class TroopController {
   }
 
   @GetMapping("/aggregate")
-  public Map<Integer, Long> aggregate(@RequestParam Long villageId) {
-    var list = countRepo.findByVillageId(villageId);
-    var map = new HashMap<Integer, Long>();
-    for (var tc : list) {
-      map.put(tc.getTroopTypeId(), tc.getCount());
+  public ResponseEntity<Map<Integer, Long>> aggregate(@RequestParam Long villageId) {
+    try {
+      var list = countRepo.findByVillageId(villageId);
+      var map = new HashMap<Integer, Long>();
+      for (var tc : list) {
+        map.put(tc.getTroopTypeId(), tc.getCount());
+      }
+      return ResponseEntity.ok(map);
+    } catch (Exception e) {
+      return ResponseEntity.ok(new HashMap<>());
     }
-    return map;
   }
 }

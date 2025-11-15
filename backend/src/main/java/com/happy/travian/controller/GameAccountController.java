@@ -14,11 +14,15 @@ public class GameAccountController {
   public GameAccountController(GameAccountRepository repo) { this.repo = repo; }
 
   @GetMapping
-  public List<GameAccount> list(@RequestParam(required = false) Long userId,
-                                @RequestParam(required = false) Long serverId) {
-    if (userId != null) return repo.findByUserId(userId);
-    if (serverId != null) return repo.findByServerId(serverId);
-    return repo.findAll();
+  public ResponseEntity<List<GameAccount>> list(@RequestParam(required = false) Long userId,
+                                                @RequestParam(required = false) Long serverId) {
+    try {
+      if (userId != null) return ResponseEntity.ok(repo.findByUserId(userId));
+      if (serverId != null) return ResponseEntity.ok(repo.findByServerId(serverId));
+      return ResponseEntity.ok(repo.findAll());
+    } catch (Exception e) {
+      return ResponseEntity.ok(List.of());
+    }
   }
 
   @PostMapping
