@@ -1,5 +1,5 @@
 import re
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 import pkgutil
 from db import SessionLocal
 from models import TroopCount, TroopType, Village, GameAccount
@@ -98,8 +98,7 @@ def troops_params():
     env_path = os.getenv("TROOPS_PARAMS_PATH")
     if env_path and os.path.exists(env_path):
         try:
-            with open(env_path, "r", encoding="utf-8") as f:
-                return jsonify(json.load(f))
+            return send_file(env_path, mimetype="application/json")
         except Exception:
             pass
     # Try package resource first
@@ -119,9 +118,7 @@ def troops_params():
     for p in candidates:
         try:
             if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return jsonify(data)
+                return send_file(p, mimetype="application/json")
         except Exception:
             continue
     if request.args.get("debug") == "1":
