@@ -18,28 +18,7 @@ jobs:
           git checkout -B main origin/main
           git rev-parse HEAD
           git log -n 1 --pretty='format:COMMIT:%h %s'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-      - name: Install Maven
-        run: sudo apt-get update && sudo apt-get install -y maven
-      - name: Run tests
-        working-directory: backend
-        run: mvn -B -Dspring.profiles.active=test test
-      - name: Build backend jar
-        working-directory: backend
-        run: mvn -B -DskipTests clean package org.springframework.boot:spring-boot-maven-plugin:3.3.4:repackage
-      - name: Verify controllers in built jar (local)
-        run: |
-          echo "==> list controller classes in jar"
-          (jar tf backend/target/happy4travian-backend-0.1.0.jar | grep com/happy/travian/controller || true)
-      - name: Verify jar exists
-        run: |
-          ls -lah backend/target
-          test -f backend/target/happy4travian-backend-0.1.0.jar
-      - name: Provision Java and firewall on server
+      - name: Provision firewall on server
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -48,19 +27,8 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
-            sudo yum install -y java-17-openjdk-devel || true
-            java -version
             sudo mkdir -p /opt/happy4travian /etc/happy4travian /etc/systemd/system
             if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
-      - name: Upload jar to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          port: ${{ secrets.SSH_PORT }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: backend/target/happy4travian-backend-0.1.0.jar
-          target: /tmp/
       - name: Upload systemd unit
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -138,23 +106,6 @@ jobs:
           script: |
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo systemctl stop happy4travian.service || true
-            sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
-            echo "==> locating uploaded jar under /tmp"
-            JAR_PATH=""
-            if [ -f /tmp/happy4travian-backend-0.1.0.jar ]; then
-              JAR_PATH=/tmp/happy4travian-backend-0.1.0.jar
-            elif [ -f /tmp/backend/target/happy4travian-backend-0.1.0.jar ]; then
-              JAR_PATH=/tmp/backend/target/happy4travian-backend-0.1.0.jar
-            elif [ -f /tmp/backend/happy4travian-backend-0.1.0.jar ]; then
-              JAR_PATH=/tmp/backend/happy4travian-backend-0.1.0.jar
-            else
-              JAR_PATH=$(find /tmp -maxdepth 3 -name happy4travian-backend-0.1.0.jar | head -n 1 || true)
-            fi
-            if [ -z "$JAR_PATH" ] || [ ! -f "$JAR_PATH" ]; then
-              echo "uploaded jar not found under /tmp"; ls -lah /tmp; ls -lah /tmp/backend || true; exit 1;
-            fi
-            echo "moving $JAR_PATH to /opt/happy4travian/happy4travian-backend.jar"
-            sudo mv "$JAR_PATH" /opt/happy4travian/happy4travian-backend.jar
             echo "==> setup python venv"
             sudo yum install -y python3 python3-pip || true
             python3 -V || true
@@ -162,9 +113,6 @@ jobs:
             /opt/happy4travian/venv/bin/pip install --upgrade pip
             /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
             ls -lah /opt/happy4travian
-            test -f /opt/happy4travian/happy4travian-backend.jar
-            echo "==> jar contents (controllers)"
-            (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
             SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
@@ -195,13 +143,6 @@ jobs:
             echo "==> app.log tail"
             sudo ls -lah /opt/happy4travian/app.log || true
             sudo tail -n 100 /opt/happy4travian/app.log || true
-            echo "==> assert controllers present in remote jar"
-            set -e
-            for cls in TribeController.class GameAccountController.class VillageController.class TroopController.class ServerController.class HealthController.class DbController.class; do
-              if ! (jar tf /opt/happy4travian/happy4travian-backend.jar | grep -q "com/happy/travian/controller/${cls}"); then
-                echo "missing controller in jar: ${cls}"; journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1;
-              fi
-            done
       - name: Integration verify and seed sample
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -242,8 +183,7 @@ jobs:
             RC_V=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/villages)
             RC_G=$(curl -s -o /dev/null -w "%{http_code}" 'http://127.0.0.1:8080/api/v1/troops/aggregate?villageId=1')
             if [ "$RC_T" != "200" ] || [ "$RC_A" != "200" ] || [ "$RC_V" != "200" ]; then
-              echo "one or more endpoints missing (404). printing jar controllers and logs";
-              (jar tf /opt/happy4travian/happy4travian-backend.jar | grep com/happy/travian/controller) || true
+              echo "one or more endpoints not 200. printing logs";
               journalctl -u happy4travian.service -n 300 --no-pager || true
               exit 1
             fi
