@@ -177,6 +177,9 @@ jobs:
               journalctl -u happy4travian.service -n 200 --no-pager || true
               exit 1
             fi
+            echo "==> app.log tail"
+            sudo ls -lah /opt/happy4travian/app.log || true
+            sudo tail -n 100 /opt/happy4travian/app.log || true
             echo "==> assert controllers present in remote jar"
             set -e
             for cls in TribeController.class GameAccountController.class VillageController.class TroopController.class ServerController.class HealthController.class DbController.class; do
