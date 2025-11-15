@@ -9,6 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Ensure latest main and print commit
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+          git rev-parse HEAD
+          git log -n 1 --pretty='format:COMMIT:%h %s'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
