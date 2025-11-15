@@ -1,5 +1,6 @@
 import re
 from flask import Blueprint, jsonify, request
+import pkgutil
 from db import SessionLocal
 from models import TroopCount, TroopType, Village, GameAccount
 import os
@@ -101,6 +102,13 @@ def troops_params():
                 return jsonify(json.load(f))
         except Exception:
             pass
+    # Try package resource first
+    try:
+        data_bytes = pkgutil.get_data('backend_py', 'data/troops_t4.6_1x.json')
+        if data_bytes:
+            return jsonify(json.loads(data_bytes.decode('utf-8')))
+    except Exception:
+        pass
     candidates = []
     base = os.path.dirname(os.path.dirname(__file__))
     candidates.append(os.path.abspath(os.path.join(base, "data", "troops_t4.6_1x.json")))
