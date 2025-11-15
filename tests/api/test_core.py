@@ -1,5 +1,7 @@
 import os
 import requests
+import time
+import random
 
 BASE = os.getenv("BASE_URL", "http://localhost:8080/api/v1")
 
@@ -9,23 +11,24 @@ def test_health():
     assert r.text == "ok"
 
 def test_end_to_end():
+    suffix = str(int(time.time())) + str(random.randint(100,999))
     # servers
-    s = requests.post(f"{BASE}/servers", json={"code":"ts1.cn", "region":"cn", "speed":"1x", "startDate": None}).json()
+    s = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None}).json()
     # tribes
-    t = requests.post(f"{BASE}/tribes", json={"code":"roman", "name":"罗马"}).json()
+    t = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{suffix}", "name":"罗马"}).json()
 
     # seed troop types via API
     requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit1", "name": "兵1"}).json()
     requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit2", "name": "兵2"}).json()
 
     # accounts
-    a = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": "tester"}).json()
+    a = requests.post(f"{BASE}/accounts", json={"userId": 1, "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"}).json()
 
     # villages
-    v = requests.post(f"{BASE}/villages", json={"serverId": s["id"], "gameAccountId": a["id"], "name": "home", "x": 0, "y": 0}).json()
+    v = requests.post(f"{BASE}/villages", json={"serverId": s["id"], "gameAccountId": a["id"], "name": "home", "x": random.randint(1, 1000), "y": random.randint(1, 1000)}).json()
 
     # alliances
-    al = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": "TV", "description": "test", "createdBy": 1}).json()
+    al = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{suffix}", "description": "test", "createdBy": 1}).json()
     m = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"}).json()
 
     # troop types
