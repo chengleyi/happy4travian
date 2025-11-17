@@ -73,21 +73,26 @@ def create_alliance():
     description = data.get("description")
     createdBy = data.get("createdBy")
     if not serverId or not name or not tag or not createdBy:
-        return jsonify({"error":"bad_request"}), 400
+        body = {"success": False, "error": "bad_request", "message": "missing_fields"}
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 400
     a = Alliance(server_id=int(serverId), name=str(name), tag=str(tag), description=str(description) if description else None, created_by=int(createdBy))
     with SessionLocal() as db:
         db.add(a)
         db.commit()
         db.refresh(a)
-        return jsonify({
-            "id": a.id,
-            "serverId": a.server_id,
-            "name": a.name,
-            "tag": a.tag,
-            "description": a.description,
-            "createdBy": a.created_by,
-            "createdAt": a.created_at.isoformat() if a.created_at else None,
-        })
+        body = {
+            "success": True,
+            "data": {
+                "id": a.id,
+                "serverId": a.server_id,
+                "name": a.name,
+                "tag": a.tag,
+                "description": a.description,
+                "createdBy": a.created_by,
+                "createdAt": a.created_at.isoformat() if a.created_at else None,
+            }
+        }
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
 
 @bp.put("/api/v1/alliances/<int:aid>")
 def update_alliance(aid: int):
