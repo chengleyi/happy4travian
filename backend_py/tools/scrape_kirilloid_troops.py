@@ -40,7 +40,8 @@ def _jsonize(js_text):
     """将部分 JS 对象文本转换为 JSON 格式便于解析"""
     j = js_text
     j = re.sub(r"'(.*?)'", lambda m: json.dumps(m.group(1)), j)
-    j = re.sub(r"([\{,\s])(\w+):", r"\1"\2":", j)
+    # 将未加引号的键转为 "key": 形式
+    j = re.sub(r"([\{,\s])(\w+):", r'\1"\2":', j)
     return j
 
 def extract_units_base(js_text):
