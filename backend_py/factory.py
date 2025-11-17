@@ -13,6 +13,10 @@ from routes.alliances import bp as alliances_bp
 from routes.users import bp as users_bp
 from routes.dev import bp as dev_bp
 from db import Base, engine
+try:
+    from tools.migrations import migrate_missing_columns
+except Exception:
+    migrate_missing_columns = None
 import models  # ensure models are loaded
 
 def create_app():
@@ -65,6 +69,12 @@ def create_app():
 
     try:
         Base.metadata.create_all(engine)
+    except Exception:
+        pass
+
+    try:
+        if migrate_missing_columns:
+            migrate_missing_columns()
     except Exception:
         pass
 
