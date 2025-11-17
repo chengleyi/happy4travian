@@ -1,5 +1,6 @@
 from datetime import date
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
+from utils.resp import ok, error
 from db import SessionLocal
 from models import Server
 
@@ -9,7 +10,7 @@ bp = Blueprint("servers", __name__)
 def list_servers():
     with SessionLocal() as db:
         rows = db.query(Server).all()
-        return jsonify([
+        return ok([
             {
                 "id": r.id,
                 "code": r.code,
@@ -29,7 +30,7 @@ def create_server():
     speed = data.get("speed")
     startDate = data.get("startDate")
     if not code:
-        return jsonify({"error":"bad_request"}), 400
+        return error("bad_request", status=400)
     s = Server()
     s.code = code
     s.region = region
@@ -40,7 +41,7 @@ def create_server():
         db.add(s)
         db.commit()
         db.refresh(s)
-        return jsonify({
+        return ok({
             "id": s.id,
             "code": s.code,
             "region": s.region,

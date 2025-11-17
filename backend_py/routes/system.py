@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, request, send_file
+from utils.resp import ok, error
 import pkgutil
 from db import engine
 import os, json, urllib.request
@@ -7,20 +8,20 @@ bp = Blueprint("system", __name__)
 
 @bp.get("/api/v1/health")
 def health():
-    return "ok"
+    return ok({"message":"ok"})
 
 @bp.get("/api/v1/healthz")
 def healthz():
-    return "ok"
+    return ok({"message":"ok"})
 
 @bp.get("/api/v1/db/ping")
 def db_ping():
     try:
         with engine.connect() as conn:
             conn.execute("SELECT 1")
-        return "ok"
+        return ok({"message":"ok"})
     except Exception:
-        return "error"
+        return error("db_error")
 
 @bp.get("/api/v1/troops_params")
 def troops_params_alias():
@@ -63,12 +64,12 @@ def troops_params_alias():
         if not base_data:
             if debug:
                 info = {"cwd": os.getcwd(), "file": __file__, "env_path": env_path}
-                return jsonify(info), 404
-            return jsonify({"error": "not_found"}), 404
+            return error("not_found", status=404)
+            
         if version != "1.46":
             return jsonify({"error": "not_found"}), 404
         if speed <= 1:
-            return jsonify(base_data)
+            return ok(base_data)
         def scale(d, k):
             out = {"version": d.get("version"), "speed": f"{k}x", "tribes": []}
             spd_map = {1:1, 2:2, 3:2, 5:2, 10:4}
@@ -86,8 +87,8 @@ def troops_params_alias():
                     tribe_out["units"].append(u2)
                 out["tribes"].append(tribe_out)
             return out
-        return jsonify(scale(base_data, speed))
+        return ok(scale(base_data, speed))
     except Exception as e:
         if debug:
-            return jsonify({"error":"exception","type":type(e).__name__,"message":str(e)}), 500
-        return jsonify({"error":"server_error"}), 500
+            return error("exception", message=f"{type(e).__name__}: {str(e)}")
+        return error("server_error")
