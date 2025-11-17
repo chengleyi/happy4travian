@@ -32,9 +32,7 @@ def list_servers():
 @bp.post("/api/v1/servers")
 def create_server():
     try:
-        ct = request.headers.get("Content-Type")
-        rb = request.get_data(cache=True, as_text=True)
-        logging.info("diag servers ct=%s body=%s", ct, rb[:256] if rb else None)
+        pass
     except Exception:
         pass
     data = get_json()
