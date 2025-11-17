@@ -3,6 +3,7 @@
 提供村庄列表与创建能力，支持按服务器或账号筛选。
 """
 from flask import Blueprint, request
+from utils.req import get_json
 from utils.resp import ok, error
 from db import SessionLocal
 from models import Village
@@ -12,8 +13,20 @@ bp = Blueprint("villages", __name__)
 @bp.get("/api/v1/villages")
 def list_villages():
     """列出村庄（可筛选）"""
-    serverId = request.args.get("serverId", type=int)
-    gameAccountId = request.args.get("gameAccountId", type=int)
+    serverId_raw = request.args.get("serverId")
+    gameAccountId_raw = request.args.get("gameAccountId")
+    serverId = None
+    gameAccountId = None
+    if serverId_raw is not None:
+        try:
+            serverId = int(serverId_raw)
+        except Exception:
+            return error("bad_request", message="serverId_invalid", status=400)
+    if gameAccountId_raw is not None:
+        try:
+            gameAccountId = int(gameAccountId_raw)
+        except Exception:
+            return error("bad_request", message="gameAccountId_invalid", status=400)
     with SessionLocal() as db:
         q = db.query(Village)
         if serverId is not None:
@@ -35,8 +48,7 @@ def list_villages():
 
 @bp.post("/api/v1/villages")
 def create_village():
-    """创建村庄"""
-    data = request.get_json(force=True)
+    data = get_json()
     v = Village(server_id=int(data.get("serverId")), game_account_id=int(data.get("gameAccountId")), name=str(data.get("name")), x=int(data.get("x")), y=int(data.get("y")))
     with SessionLocal() as db:
         db.add(v)

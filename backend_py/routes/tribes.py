@@ -3,6 +3,7 @@
 提供部落列表与创建能力。
 """
 from flask import Blueprint, request
+from utils.req import get_json
 from utils.resp import ok, error
 from db import SessionLocal
 from models import Tribe
@@ -18,8 +19,7 @@ def list_tribes():
 
 @bp.post("/api/v1/tribes")
 def create_tribe():
-    """创建部落"""
-    data = request.get_json(force=True)
+    data = get_json()
     code = data.get("code")
     name = data.get("name")
     if not code or not name:

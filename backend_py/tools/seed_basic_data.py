@@ -122,8 +122,13 @@ def seed_troop_types_from_json(db):
     base = os.path.abspath(os.path.join(os.path.dirname(__file__),"..","data","troops_t4.6_1x.json"))
     if not os.path.exists(base):
         return
-    with open(base,"r",encoding="utf-8") as f:
-        data = json.load(f)
+    data = None
+    try:
+        with open(base,"r",encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        with open(base,"r",encoding="utf-8-sig") as f:
+            data = json.load(f)
     for tribe in data.get("tribes", []):
         tid = int(tribe.get("tribeId"))
         for idx,u in enumerate(tribe.get("units", []), start=1):

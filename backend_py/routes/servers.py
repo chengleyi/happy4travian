@@ -4,6 +4,7 @@
 """
 from datetime import date
 from flask import Blueprint, request
+from utils.req import get_json
 from utils.resp import ok, error
 from db import SessionLocal
 from models import Server
@@ -29,8 +30,7 @@ def list_servers():
 
 @bp.post("/api/v1/servers")
 def create_server():
-    """创建服务器"""
-    data = request.get_json(force=True)
+    data = get_json()
     code = data.get("code")
     region = data.get("region")
     speed = data.get("speed")

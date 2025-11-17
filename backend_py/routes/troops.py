@@ -9,6 +9,7 @@
 """
 import re
 from flask import Blueprint, request, send_file
+from utils.req import get_json
 from utils.resp import ok, error
 import pkgutil
 from db import SessionLocal
@@ -26,7 +27,7 @@ def upload_troops():
     请求体：`{ villageId: number, counts: { [troopTypeId]: number } }`
     将各兵种数量写入 `troop_counts` 表（存在则更新，否则插入）。
     """
-    data = request.get_json(force=True)
+    data = get_json()
     villageId = int(data.get("villageId"))
     counts = data.get("counts", {})
     with SessionLocal() as db:
@@ -71,7 +72,7 @@ def list_troop_types():
 @bp.post("/api/v1/troop-types")
 def create_troop_type():
     """创建兵种类型"""
-    data = request.get_json(force=True)
+    data = get_json()
     tribeId = data.get("tribeId")
     code = data.get("code")
     name = data.get("name")
@@ -103,7 +104,7 @@ def _parse_travian_html_to_counts(html: str, tribe_types: list):
 @bp.post("/api/v1/troops/parse-upload")
 def parse_upload_troops():
     """解析网页片段并写入兵种数量"""
-    data = request.get_json(force=True)
+    data = get_json()
     villageId = int(data.get("villageId"))
     html = data.get("html") or ""
     with SessionLocal() as db:

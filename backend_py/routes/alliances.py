@@ -4,6 +4,7 @@
 """
 import json
 from flask import Blueprint, request, Response
+from utils.req import get_json
 from utils.resp import ok, error
 from db import SessionLocal, engine
 from sqlalchemy import inspect
@@ -14,11 +15,17 @@ bp = Blueprint("alliances", __name__)
 @bp.get("/api/v1/alliances")
 def list_alliances():
     """列出联盟（可按服务器与名称过滤）"""
-    serverId = request.args.get("serverId", type=int)
+    serverId_raw = request.args.get("serverId")
     name = request.args.get("name", type=str)
+    serverId = None
+    if serverId_raw is not None:
+        try:
+            serverId = int(serverId_raw)
+        except Exception:
+            return error("bad_request", message="serverId_invalid", status=400)
     try:
         if not inspect(engine).has_table("alliances"):
-            return jsonify([])
+            return ok([])
         with SessionLocal() as db:
             q = db.query(Alliance)
             if serverId is not None:
@@ -74,7 +81,7 @@ def get_alliance(aid: int):
 @bp.post("/api/v1/alliances")
 def create_alliance():
     """创建联盟"""
-    data = request.get_json(force=True)
+    data = get_json()
     serverId = data.get("serverId")
     name = data.get("name")
     tag = data.get("tag")
@@ -105,7 +112,7 @@ def create_alliance():
 @bp.put("/api/v1/alliances/<int:aid>")
 def update_alliance(aid: int):
     """更新联盟基本信息"""
-    data = request.get_json(force=True)
+    data = get_json()
     with SessionLocal() as db:
         a = db.query(Alliance).filter(Alliance.id == aid).first()
         if not a:
@@ -166,7 +173,7 @@ def list_alliance_members(aid: int):
 @bp.post("/api/v1/alliances/<int:aid>/members")
 def add_alliance_member(aid: int):
     """添加联盟成员"""
-    data = request.get_json(force=True)
+    data = get_json()
     gameAccountId = data.get("gameAccountId")
     role = data.get("role") or "member"
     with SessionLocal() as db:
@@ -192,18 +199,18 @@ def add_alliance_member(aid: int):
 @bp.put("/api/v1/alliances/<int:aid>/members/<int:mid>")
 def update_alliance_member(aid: int, mid: int):
     """更新联盟成员信息"""
-    data = request.get_json(force=True)
+    data = get_json()
     with SessionLocal() as db:
         m = db.query(AllianceMember).filter(AllianceMember.id == mid, AllianceMember.alliance_id == aid).first()
         if not m:
-            return jsonify({"error":"not_found"}), 404
+            return error("not_found", status=404)
         if "role" in data and data["role"]:
             m.role = str(data["role"])
         if "joinStatus" in data and data["joinStatus"]:
             m.join_status = str(data["joinStatus"])
         db.commit()
         db.refresh(m)
-        return jsonify({
+        return ok({
             "id": m.id,
             "allianceId": m.alliance_id,
             "gameAccountId": m.game_account_id,
@@ -219,7 +226,7 @@ def delete_alliance_member(aid: int, mid: int):
     with SessionLocal() as db:
         m = db.query(AllianceMember).filter(AllianceMember.id == mid, AllianceMember.alliance_id == aid).first()
         if not m:
-            return jsonify({"error":"not_found"}), 404
+            return error("not_found", status=404)
         db.delete(m)
         db.commit()
-        return "ok"
+        return ok({"deleted": True})
