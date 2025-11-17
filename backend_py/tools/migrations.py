@@ -37,3 +37,8 @@ def migrate_missing_columns():
     result.update(ensure_alliances_columns())
     result.update(ensure_alliance_members_columns())
     return result
+
+if __name__ == '__main__':
+    import json
+    changes = migrate_missing_columns()
+    print(json.dumps({"changes": changes}, ensure_ascii=False))
