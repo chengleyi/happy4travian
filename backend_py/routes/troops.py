@@ -96,16 +96,23 @@ def parse_upload_troops():
 @bp.get("/api/v1/troops/params")
 def troops_params():
     debug = request.args.get("debug") == "1"
-    try:
-        version = request.args.get("version", "1.46")
-        speed_str = request.args.get("speed", "1x")
-        m = re.match(r"^(\d+)x$", speed_str)
-        speed = int(m.group(1)) if m else 1
+    version = request.args.get("version", "1.46")
+    speed_str = request.args.get("speed", "1x")
+    m = re.match(r"^(\d+)x$", speed_str)
+    speed = int(m.group(1)) if m else 1
+
     def load_base():
         env_path = os.getenv("TROOPS_PARAMS_PATH")
         if env_path and os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                try:
+                    with open(env_path, "r", encoding="utf-8-sig") as f:
+                        return json.load(f)
+                except Exception:
+                    pass
         try:
             data_bytes = pkgutil.get_data('backend_py', 'data/troops_t4.6_1x.json')
             if data_bytes:
@@ -121,8 +128,15 @@ def troops_params():
         candidates.append("/opt/happy4travian/backend_py/backend_py/data/troops_t4.6_1x.json")
         for p in candidates:
             if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        return json.load(f)
+                except Exception:
+                    try:
+                        with open(p, "r", encoding="utf-8-sig") as f:
+                            return json.load(f)
+                    except Exception:
+                        continue
         try:
             url = os.getenv("TROOPS_PARAMS_URL") or "https://raw.githubusercontent.com/chengleyi/happy4travian/main/backend_py/data/troops_t4.6_1x.json"
             with urllib.request.urlopen(url, timeout=10) as r:
@@ -130,16 +144,17 @@ def troops_params():
                 return json.loads(txt)
         except Exception:
             return None
-        base_data = load_base()
-        if not base_data:
-            if debug:
-                info = {"cwd": os.getcwd()}
-                return jsonify(info), 404
-            return jsonify({"error": "not_found"}), 404
+
+    base_data = load_base()
+    if not base_data:
+        if debug:
+            return jsonify({"cwd": os.getcwd(), "reason": "base_data_none"}), 404
+        return jsonify({"error": "not_found"}), 404
     if version != "1.46":
         return jsonify({"error": "not_found"}), 404
     if speed <= 1:
         return jsonify(base_data)
+
     def scale(d, k):
         out = {"version": d.get("version"), "speed": f"{k}x", "tribes": []}
         spd_map = {1:1, 2:2, 3:2, 5:2, 10:4}
@@ -157,8 +172,5 @@ def troops_params():
                 tribe_out["units"].append(u2)
             out["tribes"].append(tribe_out)
         return out
-        return jsonify(scale(base_data, speed))
-    except Exception as e:
-        if debug:
-            return jsonify({"error":"exception","type":type(e).__name__,"message":str(e)}), 500
-        return jsonify({"error":"server_error"}), 500
+
+    return jsonify(scale(base_data, speed))
