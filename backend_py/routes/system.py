@@ -8,20 +8,36 @@ bp = Blueprint("system", __name__)
 
 @bp.get("/api/v1/health")
 def health():
-    return ok({"message":"ok"})
+    fmt = request.args.get("fmt")
+    accept = request.headers.get("Accept", "")
+    if fmt == "json" or "application/json" in accept:
+        return ok({"message":"ok"})
+    return "ok"
 
 @bp.get("/api/v1/healthz")
 def healthz():
-    return ok({"message":"ok"})
+    fmt = request.args.get("fmt")
+    accept = request.headers.get("Accept", "")
+    if fmt == "json" or "application/json" in accept:
+        return ok({"message":"ok"})
+    return "ok"
 
 @bp.get("/api/v1/db/ping")
 def db_ping():
     try:
         with engine.connect() as conn:
             conn.execute("SELECT 1")
-        return ok({"message":"ok"})
+        fmt = request.args.get("fmt")
+        accept = request.headers.get("Accept", "")
+        if fmt == "json" or "application/json" in accept:
+            return ok({"message":"ok"})
+        return "ok"
     except Exception:
-        return error("db_error")
+        fmt = request.args.get("fmt")
+        accept = request.headers.get("Accept", "")
+        if fmt == "json" or "application/json" in accept:
+            return error("db_error")
+        return "error"
 
 @bp.get("/api/v1/troops_params")
 def troops_params_alias():
