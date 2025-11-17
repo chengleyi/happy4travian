@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
+from utils.resp import ok, error
 from db import SessionLocal
 from models import Village
 
@@ -15,7 +16,7 @@ def list_villages():
         if gameAccountId is not None:
             q = q.filter(Village.game_account_id == gameAccountId)
         rows = q.all()
-        return jsonify([
+        return ok([
             {
                 "id": r.id,
                 "serverId": r.server_id,
@@ -35,4 +36,4 @@ def create_village():
         db.add(v)
         db.commit()
         db.refresh(v)
-        return jsonify({"id": v.id, "serverId": v.server_id, "gameAccountId": v.game_account_id, "name": v.name, "x": v.x, "y": v.y})
+        return ok({"id": v.id, "serverId": v.server_id, "gameAccountId": v.game_account_id, "name": v.name, "x": v.x, "y": v.y})

@@ -6,9 +6,11 @@ import random
 BASE = os.getenv("BASE_URL", "http://localhost:8080/api/v1")
 
 def test_health():
-    r = requests.get(f"{BASE}/health")
+    r = requests.get(f"{BASE}/health", headers={"Accept":"application/json"})
     assert r.status_code == 200
-    assert r.text == "ok"
+    body = r.json()
+    assert body["success"] is True
+    assert body["data"]["message"] == "ok"
 
 def test_end_to_end():
     suffix = str(int(time.time())) + str(random.randint(100,999))
@@ -16,16 +18,16 @@ def test_end_to_end():
     # servers
     rs = requests.post(f"{BASE}/servers", json={"code": f"ts-ci-{suffix}", "region":"cn", "speed":"1x", "startDate": None})
     assert rs.status_code == 200
-    s = rs.json()
+    s = rs.json()["data"]
     # users
     ru = requests.post(f"{BASE}/users", json={"nickname": f"ci-{short}"})
     assert ru.status_code == 200
-    user = ru.json()
+    user = ru.json()["data"]
 
     # tribes
     rt = requests.post(f"{BASE}/tribes", json={"code": f"roman-ci-{short}", "name":"罗马"})
     assert rt.status_code == 200
-    t = rt.json()
+    t = rt.json()["data"]
 
     # seed troop types via API
     rtt1 = requests.post(f"{BASE}/troop-types", json={"tribeId": t["id"], "code": "unit1", "name": "兵1"})
@@ -35,22 +37,22 @@ def test_end_to_end():
     # accounts
     ra = requests.post(f"{BASE}/accounts", json={"userId": user["id"], "serverId": s["id"], "tribeId": t["id"], "inGameName": f"tester-ci-{suffix}"})
     assert ra.status_code == 200
-    a = ra.json()
+    a = ra.json()["data"]
 
     # villages
     rv = requests.post(f"{BASE}/villages", json={"serverId": s["id"], "gameAccountId": a["id"], "name": "home", "x": random.randint(1, 1000), "y": random.randint(1, 1000)})
     assert rv.status_code == 200
-    v = rv.json()
+    v = rv.json()["data"]
 
     # alliances
     ral = requests.post(f"{BASE}/alliances", json={"serverId": s["id"], "name": "TRAVCO", "tag": f"TV{short}", "description": "test", "createdBy": user["id"]})
     assert ral.status_code == 200
-    al = ral.json()
+    al = ral.json()["data"]
     rm = requests.post(f"{BASE}/alliances/{al['id']}/members", json={"gameAccountId": a["id"], "role": "member"})
     assert rm.status_code == 200
 
     # troop types
-    tt = requests.get(f"{BASE}/troop-types", params={"tribeId": t["id"]}).json()
+    tt = requests.get(f"{BASE}/troop-types", params={"tribeId": t["id"]}).json()["data"]
     type_ids = [tt[0]["id"], tt[1]["id"]]
 
     # troops upload and aggregate

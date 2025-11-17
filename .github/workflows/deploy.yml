@@ -206,18 +206,17 @@ jobs:
             set +a
             /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/migrations.py || true
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
-      - name: External health probe
+      - name: External health probe (JSON)
         run: |
           echo "==> probe from runner"
-          curl -s -o /dev/null -w "HTTP:%{http_code} BYTES:%{size_download}\n" http://47.99.88.168:8080/api/v1/health || true
-          curl -s -o /dev/null -w "HTTP:%{http_code} BYTES:%{size_download}\n" http://47.99.88.168:8080/api/v1/db/ping || true
+          curl -s http://47.99.88.168:8080/api/v1/health | tee /tmp/health.json && grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json || exit 1
+          curl -s http://47.99.88.168:8080/api/v1/db/ping | tee /tmp/dbping.json && grep -q '"success": *true' /tmp/dbping.json && grep -q '"message": *"ok"' /tmp/dbping.json || exit 1
           echo "==> external endpoints"
-          curl -s -o /dev/null -w "tribes:%{http_code}\n" http://47.99.88.168:8080/api/v1/tribes || true
-          curl -s -o /dev/null -w "accounts:%{http_code}\n" http://47.99.88.168:8080/api/v1/accounts || true
-          curl -s -o /dev/null -w "villages:%{http_code}\n" http://47.99.88.168:8080/api/v1/villages || true
+          curl -s http://47.99.88.168:8080/api/v1/tribes | tee /tmp/tribes.json && grep -q '"success": *true' /tmp/tribes.json || exit 1
+          curl -s http://47.99.88.168:8080/api/v1/accounts | tee /tmp/accounts.json && grep -q '"success": *true' /tmp/accounts.json || exit 1
+          curl -s http://47.99.88.168:8080/api/v1/villages | tee /tmp/villages.json && grep -q '"success": *true' /tmp/villages.json || exit 1
           echo "==> external troops params"
-          curl -s -o /dev/null -w "tp:%{http_code}\n" http://47.99.88.168:8080/api/v1/troops/params || true
-          curl -s -o /dev/null -w "tpa:%{http_code}\n" http://47.99.88.168:8080/api/v1/troops_params || true
+          curl -s 'http://47.99.88.168:8080/api/v1/troops/params?version=1.46&speed=3x' | tee /tmp/tparams.json && grep -q '"success": *true' /tmp/tparams.json || exit 1
       - name: Smoke test (external, non-blocking)
         run: |
           attempt_health() { curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health || echo "000"; }
