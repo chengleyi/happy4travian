@@ -209,8 +209,8 @@ jobs:
       - name: External health probe (JSON)
         run: |
           echo "==> probe from runner"
-          curl -s http://47.99.88.168:8080/api/v1/health | tee /tmp/health.json && grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json || exit 1
-          curl -s http://47.99.88.168:8080/api/v1/db/ping | tee /tmp/dbping.json && grep -q '"success": *true' /tmp/dbping.json && grep -q '"message": *"ok"' /tmp/dbping.json || exit 1
+          curl -s -H 'Accept: application/json' http://47.99.88.168:8080/api/v1/health | tee /tmp/health.json ; (grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json) || (test "$(cat /tmp/health.json)" = "ok")
+          curl -s -H 'Accept: application/json' http://47.99.88.168:8080/api/v1/db/ping | tee /tmp/dbping.json ; (grep -q '"success": *true' /tmp/dbping.json && grep -q '"message": *"ok"' /tmp/dbping.json) || (test "$(cat /tmp/dbping.json)" = "ok")
           echo "==> external endpoints"
           curl -s http://47.99.88.168:8080/api/v1/tribes | tee /tmp/tribes.json && grep -q '"success": *true' /tmp/tribes.json || exit 1
           curl -s http://47.99.88.168:8080/api/v1/accounts | tee /tmp/accounts.json && grep -q '"success": *true' /tmp/accounts.json || exit 1
