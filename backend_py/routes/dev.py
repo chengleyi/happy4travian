@@ -1,3 +1,4 @@
+from flask import Blueprint
 from utils.resp import ok, error
 from tools.seed_basic_data import ensure_tables, seed_tribes, seed_server, seed_users_accounts_villages, seed_alliance, seed_troop_types_from_json
 from db import SessionLocal
