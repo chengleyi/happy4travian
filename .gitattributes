@@ -1,0 +1,28 @@
+# 统一并显式控制行尾，消除 Windows 下的 LF/CRLF 警告
+* text=auto
+
+# 源码与配置使用 LF
+*.py   text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sql  text eol=lf
+*.conf text eol=lf
+*.wxml text eol=lf
+*.wxss text eol=lf
+Dockerfile text eol=lf
+*.sh   text eol=lf
+
+# Windows 脚本保留 CRLF（便于在 Windows 下运行）
+*.ps1  text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# 二进制文件
+*.xlsx binary
+~$*.xlsx binary
+
+# 文本型导出按 LF（跨平台一致）
+*.csv  text eol=lf
