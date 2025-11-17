@@ -138,20 +138,45 @@ jobs:
             fi
             export MAMBA_ROOT_PREFIX=/opt/happy4travian/mamba
             echo "==> create/update env h4t (py311)"
-            /opt/happy4travian/micromamba/bin/micromamba create -y -n h4t python=3.11 || true
-            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
-            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -m pip install --upgrade pip
+            if [ -x /opt/happy4travian/micromamba/bin/micromamba ]; then
+              /opt/happy4travian/micromamba/bin/micromamba create -y -n h4t python=3.11 || true
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -m pip install --upgrade pip
+            else
+              echo "micromamba unavailable, fallback to IUS Python 3.11"
+              sudo yum install -y https://repo.ius.io/ius-release-el7.rpm || true
+              sudo yum install -y python311 python311-pip || true
+              PY311=/usr/bin/python3.11
+              if [ -x "$PY311" ]; then
+                sudo "$PY311" -m venv /opt/happy4travian/py311
+                /opt/happy4travian/py311/bin/pip install --upgrade pip
+                sudo mkdir -p /opt/happy4travian/mamba/envs/h4t/bin
+                sudo ln -sf /opt/happy4travian/py311/bin/python /opt/happy4travian/mamba/envs/h4t/bin/python || true
+                sudo ln -sf /opt/happy4travian/py311/bin/pip /opt/happy4travian/mamba/envs/h4t/bin/pip || true
+              fi
+            fi
             ls -lah /opt/happy4travian || true
             ls -lah /opt/happy4travian/backend_py || true
             grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
-            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
-            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
-            if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/backend_py/requirements.txt
-            elif [ -f /opt/happy4travian/requirements.txt ]; then
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/requirements.txt
+            if [ -x /opt/happy4travian/micromamba/bin/micromamba ]; then
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
+              if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
+                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/backend_py/requirements.txt
+              elif [ -f /opt/happy4travian/requirements.txt ]; then
+                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/requirements.txt
+              else
+                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
+              fi
             else
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
+              if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
+                /opt/happy4travian/py311/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt || true
+              elif [ -f /opt/happy4travian/requirements.txt ]; then
+                /opt/happy4travian/py311/bin/pip install -r /opt/happy4travian/requirements.txt || true
+              else
+                /opt/happy4travian/py311/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10 || true
+              fi
+              sudo ln -sf /opt/happy4travian/py311/bin/gunicorn /opt/happy4travian/mamba/envs/h4t/bin/gunicorn || true
             fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
