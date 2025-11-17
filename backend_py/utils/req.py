@@ -9,8 +9,23 @@ def get_json():
         data = None
     if isinstance(data, dict):
         return data
-    b = request.get_data(cache=False, as_text=False)
+    b = None
+    try:
+        b = request.get_data(cache=True, as_text=False)
+    except Exception:
+        b = None
     if not b:
+        try:
+            s2 = request.get_data(cache=True, as_text=True)
+            if s2:
+                try:
+                    j2 = json.loads(s2)
+                    if isinstance(j2, dict):
+                        return j2
+                except Exception:
+                    pass
+        except Exception:
+            pass
         if request.form:
             d = {}
             for k in request.form.keys():
