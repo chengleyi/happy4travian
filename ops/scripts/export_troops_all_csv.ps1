@@ -1,3 +1,7 @@
+<#
+  兵种参数导出为单一 CSV（包含所有部落与兵种）
+  适合快速汇总查看或导入到其他系统。
+#>
 param(
   [string]$JsonPath = "backend_py/data/troops_t4.6_1x.json",
   [string]$OutPath = "backend_py/exports/troops_all.csv"

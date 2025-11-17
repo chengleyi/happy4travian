@@ -1,3 +1,7 @@
+"""联盟与成员接口
+
+提供联盟的 CRUD 以及成员管理能力；部分返回自行组装 JSON 以控制格式。
+"""
 import json
 from flask import Blueprint, request, Response
 from utils.resp import ok, error
@@ -9,6 +13,7 @@ bp = Blueprint("alliances", __name__)
 
 @bp.get("/api/v1/alliances")
 def list_alliances():
+    """列出联盟（可按服务器与名称过滤）"""
     serverId = request.args.get("serverId", type=int)
     name = request.args.get("name", type=str)
     try:
@@ -41,6 +46,7 @@ def list_alliances():
 
 @bp.get("/api/v1/alliances/<int:aid>")
 def get_alliance(aid: int):
+    """获取单个联盟详情"""
     try:
         if not inspect(engine).has_table("alliances"):
             body = {"success": False, "error": "not_found"}
@@ -67,6 +73,7 @@ def get_alliance(aid: int):
 
 @bp.post("/api/v1/alliances")
 def create_alliance():
+    """创建联盟"""
     data = request.get_json(force=True)
     serverId = data.get("serverId")
     name = data.get("name")
@@ -97,6 +104,7 @@ def create_alliance():
 
 @bp.put("/api/v1/alliances/<int:aid>")
 def update_alliance(aid: int):
+    """更新联盟基本信息"""
     data = request.get_json(force=True)
     with SessionLocal() as db:
         a = db.query(Alliance).filter(Alliance.id == aid).first()
@@ -122,6 +130,7 @@ def update_alliance(aid: int):
 
 @bp.delete("/api/v1/alliances/<int:aid>")
 def delete_alliance(aid: int):
+    """删除联盟"""
     with SessionLocal() as db:
         a = db.query(Alliance).filter(Alliance.id == aid).first()
         if not a:
@@ -132,6 +141,7 @@ def delete_alliance(aid: int):
 
 @bp.get("/api/v1/alliances/<int:aid>/members")
 def list_alliance_members(aid: int):
+    """列出联盟成员"""
     try:
         with SessionLocal() as db:
             rows = db.query(AllianceMember).filter(AllianceMember.alliance_id == aid).all()
@@ -155,6 +165,7 @@ def list_alliance_members(aid: int):
 
 @bp.post("/api/v1/alliances/<int:aid>/members")
 def add_alliance_member(aid: int):
+    """添加联盟成员"""
     data = request.get_json(force=True)
     gameAccountId = data.get("gameAccountId")
     role = data.get("role") or "member"
@@ -180,6 +191,7 @@ def add_alliance_member(aid: int):
 
 @bp.put("/api/v1/alliances/<int:aid>/members/<int:mid>")
 def update_alliance_member(aid: int, mid: int):
+    """更新联盟成员信息"""
     data = request.get_json(force=True)
     with SessionLocal() as db:
         m = db.query(AllianceMember).filter(AllianceMember.id == mid, AllianceMember.alliance_id == aid).first()
@@ -203,6 +215,7 @@ def update_alliance_member(aid: int, mid: int):
 
 @bp.delete("/api/v1/alliances/<int:aid>/members/<int:mid>")
 def delete_alliance_member(aid: int, mid: int):
+    """删除联盟成员"""
     with SessionLocal() as db:
         m = db.query(AllianceMember).filter(AllianceMember.id == mid, AllianceMember.alliance_id == aid).first()
         if not m:

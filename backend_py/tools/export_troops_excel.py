@@ -1,3 +1,7 @@
+"""兵种参数导出为 Excel（openpyxl版）
+
+读取静态 JSON 数据，将各部落兵种参数导出到 xlsx 文件；中文映射可按内置表补充。
+"""
 import os
 import json
 from datetime import timedelta
@@ -16,11 +20,13 @@ CN_UNITS = {
 CN_TYPE = {"i": "步兵", "c": "骑兵"}
 
 def fmt_time(sec):
+    """秒转时分秒字符串"""
     if not isinstance(sec, (int, float)) or sec <= 0:
         return "0:00:00"
     return str(timedelta(seconds=int(sec)))
 
 def export_excel(json_path: str, out_path: str):
+    """从 JSON 生成 xlsx 并返回输出路径"""
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     wb = Workbook()
@@ -93,6 +99,7 @@ def export_excel(json_path: str, out_path: str):
     return out_path
 
 def main():
+    """命令行入口：导出默认路径的 xlsx"""
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "troops_t4.6_1x.json"))
     out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports", "troops_t4.6_1x.xlsx"))
     path = export_excel(base, out_path)

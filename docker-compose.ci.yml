@@ -1,4 +1,5 @@
 services:
+  # CI 用 MySQL 实例，初始化时挂载 schema.sql 创建表
   mysql:
     image: mysql:8.0
     environment:
@@ -14,6 +15,7 @@ services:
     volumes:
       - ./docs/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
 
+  # 后端服务容器，依赖 MySQL 健康
   backend:
     build:
       context: .
@@ -27,4 +29,4 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    # healthcheck intentionally omitted; CI waits with curl on host
+    # 不设容器健康检查，CI 侧通过 curl 等待

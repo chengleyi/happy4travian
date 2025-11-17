@@ -1,10 +1,13 @@
 [Unit]
+# 后端服务单元：依赖网络就绪
 Description=Happy4Travian Backend
 After=network.target
 
 [Service]
+# 工作目录与环境变量文件
 WorkingDirectory=/opt/happy4travian
 EnvironmentFile=/etc/happy4travian/happy4travian.env
+# 使用 gunicorn 启动 Flask 应用
 ExecStart=/opt/happy4travian/venv/bin/gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
 Restart=always
 RestartSec=5
@@ -12,4 +15,5 @@ User=root
 LimitNOFILE=65535
 
 [Install]
+# 开机自启
 WantedBy=multi-user.target

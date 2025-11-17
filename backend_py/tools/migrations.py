@@ -1,8 +1,13 @@
+"""简单的列迁移脚本
+
+检测并为 `alliances` 与 `alliance_members` 补充缺失列，使用原生 SQL 执行。
+"""
 from sqlalchemy import text
 from sqlalchemy import inspect
 from db import engine
 
 def ensure_alliances_columns():
+    """确保 `alliances` 表存在并包含 `created_at` 列"""
     insp = inspect(engine)
     if not insp.has_table('alliances'):
         return {"alliances": "table_missing"}
@@ -15,6 +20,7 @@ def ensure_alliances_columns():
     return changed or {"alliances": "ok"}
 
 def ensure_alliance_members_columns():
+    """确保 `alliance_members` 表存在并包含必要列"""
     insp = inspect(engine)
     if not insp.has_table('alliance_members'):
         return {"alliance_members": "table_missing"}
@@ -33,6 +39,7 @@ def ensure_alliance_members_columns():
     return changed or {"alliance_members": "ok"}
 
 def migrate_missing_columns():
+    """执行所有迁移步骤并返回变更摘要"""
     result = {}
     result.update(ensure_alliances_columns())
     result.update(ensure_alliance_members_columns())

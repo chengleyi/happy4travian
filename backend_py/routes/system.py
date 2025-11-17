@@ -1,3 +1,7 @@
+"""系统与健康检查接口
+
+提供健康检查、数据库连通性测试，以及兵种参数别名接口。
+"""
 from flask import Blueprint, request, send_file
 from utils.resp import ok, error
 import pkgutil
@@ -8,14 +12,17 @@ bp = Blueprint("system", __name__)
 
 @bp.get("/api/v1/health")
 def health():
+    """健康检查（返回 JSON）"""
     return ok({"message":"ok"})
 
 @bp.get("/api/v1/healthz")
 def healthz():
+    """K8s 风格健康检查路径"""
     return ok({"message":"ok"})
 
 @bp.get("/api/v1/db/ping")
 def db_ping():
+    """数据库连通性测试"""
     try:
         with engine.connect() as conn:
             conn.execute("SELECT 1")
@@ -25,6 +32,7 @@ def db_ping():
 
 @bp.get("/api/v1/troops_params")
 def troops_params_alias():
+    """兵种参数别名（兼容旧路径）"""
     debug = request.args.get("debug") == "1"
     try:
         version = request.args.get("version", "1.46")

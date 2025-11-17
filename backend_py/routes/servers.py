@@ -1,3 +1,7 @@
+"""服务器相关接口
+
+提供服务器列表与创建能力。
+"""
 from datetime import date
 from flask import Blueprint, request
 from utils.resp import ok, error
@@ -8,6 +12,7 @@ bp = Blueprint("servers", __name__)
 
 @bp.get("/api/v1/servers")
 def list_servers():
+    """列出服务器"""
     with SessionLocal() as db:
         rows = db.query(Server).all()
         return ok([
@@ -24,6 +29,7 @@ def list_servers():
 
 @bp.post("/api/v1/servers")
 def create_server():
+    """创建服务器"""
     data = request.get_json(force=True)
     code = data.get("code")
     region = data.get("region")

@@ -1,3 +1,7 @@
+"""多倍速兵种参数导出（openpyxl）
+
+将 1x 基础数据按多倍速（1,2,3,5,10）生成多个工作表，并套用中文映射。
+"""
 import os
 import json
 from datetime import timedelta
@@ -7,11 +11,13 @@ SPD_MAP = {1:1, 2:2, 3:2, 5:2, 10:4}
 SPEEDS = [1,2,3,5,10]
 
 def fmt_time(sec):
+    """秒转 H:MM:SS 字符串"""
     if not isinstance(sec, (int, float)) or sec <= 0:
         return "0:00:00"
     return str(timedelta(seconds=int(sec)))
 
 def load_json(p):
+    """容错读取 JSON（utf-8 与 utf-8-sig）"""
     try:
         with open(p, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -20,6 +26,7 @@ def load_json(p):
             return json.load(f)
 
 def build_rows(base, cn_map, k):
+    """构建指定倍速 k 的表格行"""
     rows = []
     headers = cn_map["headers"]
     rows.append(headers)
@@ -49,6 +56,7 @@ def build_rows(base, cn_map, k):
     return rows
 
 def export_multi(base_path, cn_path, out_path):
+    """导出多工作表 xlsx 并返回路径"""
     base = load_json(base_path)
     cn = load_json(cn_path)
     wb = Workbook()
@@ -70,6 +78,7 @@ def export_multi(base_path, cn_path, out_path):
     return out_path
 
 def main():
+    """命令行入口：按默认路径生成多倍速 xlsx"""
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "troops_t4.6_1x.json"))
     cn = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "cn_map.json"))
     out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports", "troops_multi.xlsx"))

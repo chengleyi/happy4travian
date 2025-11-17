@@ -1,11 +1,16 @@
+"""API 冒烟与端到端测试
+
+通过真实 HTTP 请求验证核心接口：健康、服务器、用户、部落、账号、村庄、联盟与兵种。
+"""
 import os
 import requests
 import time
 import random
 
-BASE = os.getenv("BASE_URL", "http://localhost:8080/api/v1")
+BASE = os.getenv("BASE_URL", "http://localhost:8080/api/v1")  # 允许通过环境变量覆盖基础地址
 
 def test_health():
+    """验证健康接口返回 200 且消息为 ok"""
     r = requests.get(f"{BASE}/health", headers={"Accept":"application/json"})
     assert r.status_code == 200
     body = r.json()
@@ -13,6 +18,7 @@ def test_health():
     assert body["data"]["message"] == "ok"
 
 def test_end_to_end():
+    """端到端：按顺序创建并关联各实体，最后验证兵种相关接口"""
     suffix = str(int(time.time())) + str(random.randint(100,999))
     short = str(random.randint(1000,9999))
     # servers

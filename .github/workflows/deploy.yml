@@ -1,3 +1,4 @@
+# 部署工作流：在 main 分支推送或手触发时执行
 name: deploy
 on:
   push:
@@ -9,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Redeploy marker
+        # 标记重部署时间，便于审计
         run: |
           echo "REDEPLOY_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > redeploy.marker
       - uses: actions/checkout@v4
@@ -16,12 +18,14 @@ jobs:
           fetch-depth: 0
           ref: main
       - name: Ensure latest main and print commit
+        # 确保使用最新 main，并打印提交信息
         run: |
           git fetch origin main
           git checkout -B main origin/main
           git rev-parse HEAD
           git log -n 1 --pretty='format:COMMIT:%h %s'
       - name: Upload systemd unit
+        # 上传 systemd 单元文件到服务器
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -31,6 +35,7 @@ jobs:
           source: ops/systemd/happy4travian.service
           target: /etc/systemd/system/
       - name: Upload DB schema
+        # 上传数据库初始化 SQL 到指定目录
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -40,10 +45,12 @@ jobs:
           source: docs/schema.sql
           target: /opt/happy4travian/
       - name: Archive backend
+        # 将后端目录打包为 tar.gz（便于传输）
         run: |
           tar -czf backend_py.tar.gz backend_py
           ls -lah backend_py.tar.gz
       - name: Upload backend archive
+        # 上传后端归档到服务器指定目录
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -53,6 +60,7 @@ jobs:
           source: backend_py.tar.gz
           target: /opt/happy4travian/
       - name: Ensure app.py and requirements uploaded
+        # 确保关键文件已上传到运行目录
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -62,6 +70,7 @@ jobs:
           source: backend_py/app.py
           target: /opt/happy4travian/backend_py/
       - name: Ensure requirements uploaded
+        # 便于服务器端安装依赖
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -71,6 +80,7 @@ jobs:
           source: backend_py/requirements.txt
           target: /opt/happy4travian/backend_py/
       - name: DB preflight and create tables
+        # 在服务器上创建数据库并检查表
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -87,6 +97,7 @@ jobs:
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4;"
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES; SHOW TABLES LIKE 'game_accounts';"
       - name: Prepare and restart service (Flask)
+        # 准备 Python 环境并重启服务
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -152,6 +163,7 @@ jobs:
             sudo ls -lah /opt/happy4travian/app.log || true
             sudo tail -n 100 /opt/happy4travian/app.log || true
       - name: Generate Excel export (xlsx)
+        # 服务器端生成 xlsx 导出文件以验证工具链
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -164,6 +176,7 @@ jobs:
             /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
             ls -lah /opt/happy4travian/backend_py/exports || true
       - name: Server-side smoke test (authoritative)
+        # 在服务器本地进行 API 冒烟测试
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -178,6 +191,7 @@ jobs:
               for i in 1 2 3 4 5 6 7 8 9 10; do c=$(attempt "$ep"); echo "local-$ep:$c"; [ "$c" = "200" ] && break; sleep 2; done; [ "$c" = "200" ] || exit 1;
             done
       - name: Seed basic data on server
+        # 通过脚本在服务器上灌入基础数据
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -193,6 +207,7 @@ jobs:
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
             curl -s -o /dev/null -w "members:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances/1/members || true
       - name: Run DB migrations (add missing columns)
+        # 运行缺失列的迁移脚本并验证接口
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -207,6 +222,7 @@ jobs:
             /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/migrations.py || true
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
       - name: External health probe (JSON)
+        # 从 Runner 侧对外部地址进行健康探测
         run: |
           echo "==> probe from runner"
           curl -s -H 'Accept: application/json' http://47.99.88.168:8080/api/v1/health | tee /tmp/health.json ; (grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json) || (test "$(cat /tmp/health.json)" = "ok")
@@ -218,6 +234,7 @@ jobs:
           echo "==> external troops params"
           curl -s 'http://47.99.88.168:8080/api/v1/troops/params?version=1.46&speed=3x' | tee /tmp/tparams.json && grep -q '"success": *true' /tmp/tparams.json || exit 1
       - name: Smoke test (external, non-blocking)
+        # 非阻塞的对外接口状态检查
         run: |
           attempt_health() { curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health || echo "000"; }
           attempt_ep() { curl -s -o /dev/null -w "%{http_code}" "http://47.99.88.168:8080/api/v1/$1" || echo "000"; }

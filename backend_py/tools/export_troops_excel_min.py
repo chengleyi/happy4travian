@@ -1,3 +1,7 @@
+"""兵种参数导出为最小 xlsx（手工 XML 版）
+
+无需第三方库，通过构造必要的 XML 并打包 Zip 生成 xlsx 文件。
+"""
 import os
 import json
 from datetime import timedelta
@@ -15,6 +19,7 @@ CN_UNITS = {
 CN_TYPE = {"i": "步兵", "c": "骑兵"}
 
 def fmt_time(sec):
+    """秒转 H:MM:SS 字符串"""
     if not isinstance(sec, (int, float)) or sec <= 0:
         return "0:00:00"
     return str(timedelta(seconds=int(sec)))
@@ -44,6 +49,7 @@ HEADERS = [
 ]
 
 def make_cell(col, row, value, is_str=False):
+    """构造单元格 XML"""
     addr = f"{col}{row}"
     if is_str:
         safe = str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -54,6 +60,7 @@ def make_cell(col, row, value, is_str=False):
         return f"<c r=\"{addr}\"><v>{value}</v></c>"
 
 def col_letter(idx):
+    """将列号转换为 Excel 列字母（1->A）"""
     s = ""
     while idx:
         idx, r = divmod(idx-1, 26)
@@ -61,6 +68,7 @@ def col_letter(idx):
     return s
 
 def build_sheet_rows(data):
+    """构造工作表行 XML 列表"""
     rows = []
     # Header row
     cells = []
@@ -92,6 +100,7 @@ def build_sheet_rows(data):
     return rows
 
 def export_xlsx(json_path: str, out_path: str):
+    """生成最小 xlsx 并返回路径"""
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     sheet_rows = build_sheet_rows(data)
@@ -146,6 +155,7 @@ def export_xlsx(json_path: str, out_path: str):
     return out_path
 
 def main():
+    """命令行入口：生成最小 xlsx"""
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "troops_t4.6_1x.json"))
     out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports", "troops_t4.6_1x.xlsx"))
     print(export_xlsx(base, out_path))

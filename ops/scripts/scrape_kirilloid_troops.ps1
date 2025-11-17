@@ -1,3 +1,7 @@
+<#
+  抓取 Kirilloid 兵种参数（PowerShell 版）
+  从网页与 JS 提取 1.46 版本 1x 兵种数据并写入 JSON。
+#>
 param()
 $ErrorActionPreference = 'Stop'
 $baseUrl = 'http://travian.kirilloid.ru'

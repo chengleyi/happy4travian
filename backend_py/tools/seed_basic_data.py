@@ -1,3 +1,7 @@
+"""基础数据灌入工具
+
+在开发或部署环境中快速创建演示所需的表与数据。
+"""
 import os
 import json
 from datetime import date
@@ -6,9 +10,11 @@ from db import engine, SessionLocal, Base
 from models import User, Server, Tribe, GameAccount, Village, Alliance, AllianceMember, TroopType
 
 def ensure_tables():
+    """确保所有模型对应的表已创建"""
     Base.metadata.create_all(engine)
 
 def seed_tribes(db):
+    """写入部落字典（如不存在）"""
     data = [("ROM","Romans"),("TEU","Teutons"),("GAL","Gauls"),("NAT","Natars"),("EGY","Egyptians"),("HUN","Huns"),("SPA","Spartans"),("VIK","Vikings")]
     for code,name in data:
         exists = db.execute(select(Tribe).where(Tribe.code==code).limit(1)).scalar_one_or_none()
@@ -16,11 +22,13 @@ def seed_tribes(db):
             db.add(Tribe(code=code,name=name))
 
 def seed_server(db):
+    """创建示例服务器（如不存在）"""
     exists = db.execute(select(Server).where(Server.code=="api-test").limit(1)).scalar_one_or_none()
     if not exists:
         db.add(Server(code="api-test",region="CN",speed="x1",start_date=date(2025,11,1),status="active"))
 
 def seed_users_accounts_villages(db):
+    """创建用户、账号与村庄示例数据"""
     u = db.execute(select(User).where(User.id==1)).scalar_one_or_none()
     if not u:
         db.add(User(id=1,nickname="tester"))
@@ -76,6 +84,7 @@ def seed_users_accounts_villages(db):
         db.add(Village(server_id=s.id,game_account_id=acc4.id,name="Village4",x=16,y=26))
 
 def seed_alliance(db):
+    """创建示例联盟与成员"""
     s = db.execute(select(Server).where(Server.code=="api-test").limit(1)).scalar_one_or_none()
     if not s:
         s = Server(code="api-test",region="CN",speed="x1",start_date=date(2025,11,1),status="active")
@@ -109,6 +118,7 @@ def seed_alliance(db):
         db.add(AllianceMember(alliance_id=a2.id,game_account_id=acc4.id,server_id=s.id,role="member",join_status="active"))
 
 def seed_troop_types_from_json(db):
+    """从静态 JSON 写入兵种类型（按部落与索引生成 code）"""
     base = os.path.abspath(os.path.join(os.path.dirname(__file__),"..","data","troops_t4.6_1x.json"))
     if not os.path.exists(base):
         return
@@ -124,6 +134,7 @@ def seed_troop_types_from_json(db):
                 db.add(TroopType(tribe_id=tid,code=code,name=name))
 
 def main():
+    """命令行入口：执行全量种子数据写入"""
     ensure_tables()
     with SessionLocal() as db:
         seed_tribes(db)

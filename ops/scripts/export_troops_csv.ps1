@@ -1,3 +1,7 @@
+<#
+  兵种参数导出为 CSV（每部落一份）
+  读取静态 JSON，生成若干 CSV 文件便于数据查看与处理。
+#>
 param(
   [string]$JsonPath = "backend_py/data/troops_t4.6_1x.json",
   [string]$OutDir = "backend_py/exports"

@@ -1,5 +1,7 @@
+<!-- 简单首页：显示后端健康检查结果 -->
 <view class="container">
   <text class="title">Happy4Travian Demo</text>
   <button bindtap="checkHealth">检查后端健康</button>
   <text class="status">{{health}}</text>
+  
 </view>

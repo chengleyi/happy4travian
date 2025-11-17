@@ -1,8 +1,12 @@
+<#
+  兵种参数导出（PowerShell 版）
+  读取 JSON 并构造最小 xlsx（多工作表），无需第三方依赖。
+#>
 param(
   [string]$JsonPath = "backend_py/data/troops_t4.6_1x.json",
   [string]$OutPath = "backend_py/exports/troops_t4.6_1x.xlsx"
 )
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop' # 出错即停止
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.IO.Compression
 function Read-Json($p) { Get-Content $p -Raw -Encoding UTF8 | ConvertFrom-Json }
@@ -12,7 +16,7 @@ function Fmt-Time($sec) {
 }
 $CN_TRIBES = @{}
 $CN_UNITS = @{}
-$CN_TYPE = @{ 'i'='Infantry'; 'c'='Cavalry' }
+$CN_TYPE = @{ 'i'='Infantry'; 'c'='Cavalry' } # 类型中文映射可按需替换
 
 function ColLetter($idx) {
   $s=''; $i=$idx

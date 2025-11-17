@@ -1,3 +1,12 @@
+"""兵种相关接口
+
+提供以下能力：
+- 上传指定村庄的兵种数量并持久化
+- 汇总某村庄的兵种数量
+- 维护并创建兵种类型（按部落）
+- 从 Travian 网页片段解析兵种数量并写入
+- 获取兵种参数（支持倍速缩放）
+"""
 import re
 from flask import Blueprint, request, send_file
 from utils.resp import ok, error
@@ -12,6 +21,11 @@ bp = Blueprint("troops", __name__)
 
 @bp.post("/api/v1/troops/upload")
 def upload_troops():
+    """上传兵种数量
+
+    请求体：`{ villageId: number, counts: { [troopTypeId]: number } }`
+    将各兵种数量写入 `troop_counts` 表（存在则更新，否则插入）。
+    """
     data = request.get_json(force=True)
     villageId = int(data.get("villageId"))
     counts = data.get("counts", {})
@@ -19,6 +33,7 @@ def upload_troops():
         for k, v in counts.items():
             k_int = int(k)
             v_int = int(v)
+            # 查找现有记录并更新数量
             existing = db.query(TroopCount).filter(TroopCount.village_id == villageId, TroopCount.troop_type_id == k_int).first()
             if existing:
                 existing.count = v_int
@@ -29,6 +44,11 @@ def upload_troops():
 
 @bp.get("/api/v1/troops/aggregate")
 def troops_aggregate():
+    """汇总村庄兵种数量
+
+    查询参数：`villageId`
+    返回：`{ troopTypeId: count }`
+    """
     villageId = request.args.get("villageId", type=int)
     with SessionLocal() as db:
         rows = db.query(TroopCount).filter(TroopCount.village_id == villageId).all()
@@ -36,6 +56,7 @@ def troops_aggregate():
 
 @bp.get("/api/v1/troop-types")
 def list_troop_types():
+    """列出兵种类型（可按部落过滤）"""
     tribeId = request.args.get("tribeId", type=int)
     with SessionLocal() as db:
         q = db.query(TroopType)
@@ -49,6 +70,7 @@ def list_troop_types():
 
 @bp.post("/api/v1/troop-types")
 def create_troop_type():
+    """创建兵种类型"""
     data = request.get_json(force=True)
     tribeId = data.get("tribeId")
     code = data.get("code")
@@ -63,6 +85,13 @@ def create_troop_type():
         return ok({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
 
 def _parse_travian_html_to_counts(html: str, tribe_types: list):
+    """从网页片段解析兵种数量
+
+    简化策略：
+    - 去除所有 HTML 标签，仅保留文本
+    - 抽取文本中的数字序列
+    - 按 `tribe_types` 的顺序，将数字映射到对应 `troop_type_id`
+    """
     text = re.sub(r"<[^>]+>", " ", html)
     nums = [int(x) for x in re.findall(r"\b\d+\b", text)]
     counts = {}
@@ -73,18 +102,22 @@ def _parse_travian_html_to_counts(html: str, tribe_types: list):
 
 @bp.post("/api/v1/troops/parse-upload")
 def parse_upload_troops():
+    """解析网页片段并写入兵种数量"""
     data = request.get_json(force=True)
     villageId = int(data.get("villageId"))
     html = data.get("html") or ""
     with SessionLocal() as db:
+        # 校验村庄与其所属账号
         v = db.query(Village).filter(Village.id == villageId).first()
         if not v:
             return error("bad_request", message="village_not_found", status=400)
         acc = db.query(GameAccount).filter(GameAccount.id == v.game_account_id).first()
         if not acc:
             return error("bad_request", message="account_not_found", status=400)
+        # 按账号部落获取兵种类型并解析数字
         types = db.query(TroopType).filter(TroopType.tribe_id == acc.tribe_id).order_by(TroopType.id.asc()).all()
         parsed = _parse_travian_html_to_counts(html, types)
+        # 批量写入
         for tid, cnt in parsed.items():
             existing = db.query(TroopCount).filter(TroopCount.village_id == villageId, TroopCount.troop_type_id == int(tid)).first()
             if existing:
@@ -96,6 +129,11 @@ def parse_upload_troops():
 
 @bp.get("/api/v1/troops/params")
 def troops_params():
+    """获取兵种参数（支持倍速缩放）
+
+    - 读取本地/环境/远程数据源，获得基础 `1x` 数据
+    - 若 `speed>1`，根据预设规则缩放 `speed/time/rs_time`
+    """
     debug = request.args.get("debug") == "1"
     version = request.args.get("version", "1.46")
     speed_str = request.args.get("speed", "1x")
@@ -103,6 +141,7 @@ def troops_params():
     speed = int(m.group(1)) if m else 1
 
     def load_base():
+        """加载基础 1x 兵种数据（优先级：环境路径 → 包内资源 → 常见路径 → 远程 URL）"""
         env_path = os.getenv("TROOPS_PARAMS_PATH")
         if env_path and os.path.exists(env_path):
             try:
@@ -157,6 +196,7 @@ def troops_params():
         return ok(base_data)
 
     def scale(d, k):
+        """按倍速缩放单位属性（速度乘以系数、训练/研究时间按倍速除以 k）"""
         out = {"version": d.get("version"), "speed": f"{k}x", "tribes": []}
         spd_map = {1:1, 2:2, 3:2, 5:2, 10:4}
         spd_factor = spd_map.get(k, 1)

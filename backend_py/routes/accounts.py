@@ -1,3 +1,7 @@
+"""游戏账号相关接口
+
+提供账号列表与创建能力，支持按用户或服务器筛选。
+"""
 from flask import Blueprint, request
 from utils.resp import ok, error
 from db import SessionLocal
@@ -7,6 +11,7 @@ bp = Blueprint("accounts", __name__)
 
 @bp.get("/api/v1/accounts")
 def list_accounts():
+    """列出游戏账号（可筛选）"""
     userId = request.args.get("userId", type=int)
     serverId = request.args.get("serverId", type=int)
     with SessionLocal() as db:
@@ -29,6 +34,7 @@ def list_accounts():
 
 @bp.post("/api/v1/accounts")
 def create_account():
+    """创建游戏账号"""
     data = request.get_json(force=True)
     a = GameAccount(user_id=int(data.get("userId")), server_id=int(data.get("serverId")), tribe_id=int(data.get("tribeId")), in_game_name=str(data.get("inGameName")))
     with SessionLocal() as db:

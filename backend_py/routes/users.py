@@ -1,3 +1,7 @@
+"""用户相关接口
+
+提供用户创建与列表能力（最小化示例）。
+"""
 from flask import Blueprint, request
 from utils.resp import ok, error
 from db import SessionLocal
@@ -7,6 +11,7 @@ bp = Blueprint("users", __name__)
 
 @bp.post("/api/v1/users")
 def create_user():
+    """创建用户（仅包含昵称与状态）"""
     data = request.get_json(force=True) or {}
     nickname = data.get("nickname") or "user"
     with SessionLocal() as db:
@@ -18,6 +23,7 @@ def create_user():
 
 @bp.get("/api/v1/users")
 def list_users():
+    """列出用户"""
     with SessionLocal() as db:
         rows = db.query(User).all()
         return ok([{"id": r.id, "nickname": r.nickname} for r in rows])
