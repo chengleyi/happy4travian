@@ -16,6 +16,9 @@ jobs:
       - name: Force redeploy note
         run: |
           echo "Force redeploy at $(date -u +%Y-%m-%dT%H:%M:%SZ) on $GITHUB_REF by $GITHUB_ACTOR"
+      - name: Restart trigger marker
+        run: |
+          echo "RESTART_TRIGGER=$(date -u +%s)" > restart.trigger
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
