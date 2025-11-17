@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
-from db import SessionLocal
+from db import SessionLocal, engine
+from sqlalchemy import inspect
 from models import Alliance, AllianceMember, GameAccount
 
 bp = Blueprint("alliances", __name__)
@@ -9,6 +10,8 @@ def list_alliances():
     serverId = request.args.get("serverId", type=int)
     name = request.args.get("name", type=str)
     try:
+        if not inspect(engine).has_table("alliances"):
+            return jsonify([])
         with SessionLocal() as db:
             q = db.query(Alliance)
             if serverId is not None:
@@ -33,19 +36,24 @@ def list_alliances():
 
 @bp.get("/api/v1/alliances/<int:aid>")
 def get_alliance(aid: int):
-    with SessionLocal() as db:
-        r = db.query(Alliance).filter(Alliance.id == aid).first()
-        if not r:
+    try:
+        if not inspect(engine).has_table("alliances"):
             return jsonify({"error":"not_found"}), 404
-        return jsonify({
-            "id": r.id,
-            "serverId": r.server_id,
-            "name": r.name,
-            "tag": r.tag,
-            "description": r.description,
-            "createdBy": r.created_by,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-        })
+        with SessionLocal() as db:
+            r = db.query(Alliance).filter(Alliance.id == aid).first()
+            if not r:
+                return jsonify({"error":"not_found"}), 404
+            return jsonify({
+                "id": r.id,
+                "serverId": r.server_id,
+                "name": r.name,
+                "tag": r.tag,
+                "description": r.description,
+                "createdBy": r.created_by,
+                "createdAt": r.created_at.isoformat() if r.created_at else None,
+            })
+    except Exception:
+        return jsonify({"error":"server_error"}), 500
 
 @bp.post("/api/v1/alliances")
 def create_alliance():
