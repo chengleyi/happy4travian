@@ -123,11 +123,13 @@ jobs:
             grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
             /opt/happy4travian/venv/bin/python -c "import sys; print(sys.version)" || true
             /opt/happy4travian/venv/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
-            if [ -f /opt/happy4travian/requirements.txt ]; then
+            if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
+              /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt
+            elif [ -f /opt/happy4travian/requirements.txt ]; then
               /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
             else
               echo "requirements.txt not found, installing packages directly (CentOS7 python3.6 compatible)"
-              /opt/happy4travian/venv/bin/pip install Flask==2.0.3 gunicorn==20.1.0 SQLAlchemy==1.4.52 pymysql==1.0.2 flask-cors==3.0.10
+              /opt/happy4travian/venv/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
             fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
