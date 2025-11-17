@@ -114,29 +114,27 @@ jobs:
               sudo tar -xzf /opt/happy4travian/backend_py.tar.gz -C /opt/happy4travian
             fi
             sudo systemctl stop happy4travian.service || true
-            sudo yum install -y python3 python3-pip || true
-            python3 -V || true
-            sudo python3 -m venv /opt/happy4travian/venv
-            /opt/happy4travian/venv/bin/pip install --upgrade pip
+            echo "==> install Miniconda (Python 3.11) if missing"
+            if [ ! -x /opt/happy4travian/miniconda3/bin/conda ]; then
+              curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
+              sudo bash /tmp/miniconda.sh -b -p /opt/happy4travian/miniconda3
+            fi
+            echo "==> create/update conda env h4t (py311)"
+            /opt/happy4travian/miniconda3/bin/conda env list || true
+            /opt/happy4travian/miniconda3/bin/conda create -y -n h4t python=3.11 || true
+            # Ensure pip up-to-date in env
+            /opt/happy4travian/miniconda3/envs/h4t/bin/python -m pip install --upgrade pip
             ls -lah /opt/happy4travian || true
             ls -lah /opt/happy4travian/backend_py || true
             grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
-            /opt/happy4travian/venv/bin/python -c "import sys; print(sys.version)" || true
-            /opt/happy4travian/venv/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
-            PYV=$(/opt/happy4travian/venv/bin/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" || echo 'unknown')
-            echo "Python version: $PYV"
-            if [ "$PYV" = "3.6" ]; then
-              echo "Installing Py3.6-compatible pins"
-              /opt/happy4travian/venv/bin/pip install Flask==2.0.3 Werkzeug==2.0.3 gunicorn==20.1.0 SQLAlchemy==1.4.52 pymysql==1.0.2 flask-cors==3.0.10
+            /opt/happy4travian/miniconda3/envs/h4t/bin/python -c "import sys; print(sys.version)" || true
+            /opt/happy4travian/miniconda3/envs/h4t/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
+            if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
+              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt
+            elif [ -f /opt/happy4travian/requirements.txt ]; then
+              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install -r /opt/happy4travian/requirements.txt
             else
-              if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
-                /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt
-              elif [ -f /opt/happy4travian/requirements.txt ]; then
-                /opt/happy4travian/venv/bin/pip install -r /opt/happy4travian/requirements.txt
-              else
-                echo "requirements.txt not found, installing modern defaults"
-                /opt/happy4travian/venv/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
-              fi
+              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
             fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
