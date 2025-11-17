@@ -1,5 +1,6 @@
 import re
 from flask import Blueprint, jsonify, request, send_file
+from utils.resp import ok, error
 import pkgutil
 from db import SessionLocal
 from models import TroopCount, TroopType, Village, GameAccount
@@ -41,7 +42,7 @@ def list_troop_types():
         if tribeId is not None:
             q = q.filter(TroopType.tribe_id == tribeId)
         rows = q.all()
-        return jsonify([
+        return ok([
             {"id": r.id, "tribeId": r.tribe_id, "code": r.code, "name": r.name}
             for r in rows
         ])
@@ -53,13 +54,13 @@ def create_troop_type():
     code = data.get("code")
     name = data.get("name")
     if not tribeId or not code or not name:
-        return jsonify({"error":"bad_request"}), 400
+        return error("bad_request", message="missing_fields", status=400)
     with SessionLocal() as db:
         tt = TroopType(tribe_id=int(tribeId), code=str(code), name=str(name))
         db.add(tt)
         db.commit()
         db.refresh(tt)
-        return jsonify({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
+        return ok({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
 
 def _parse_travian_html_to_counts(html: str, tribe_types: list):
     text = re.sub(r"<[^>]+>", " ", html)
