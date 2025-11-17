@@ -117,8 +117,11 @@ jobs:
             echo "==> install micromamba (static)"
             sudo mkdir -p /opt/happy4travian/micromamba/bin
             if [ ! -x /opt/happy4travian/micromamba/bin/micromamba ]; then
-              curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest -o /opt/happy4travian/micromamba/bin/micromamba
+              curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest -o /tmp/micromamba.tar.bz2
+              sudo tar -xjf /tmp/micromamba.tar.bz2 -C /opt/happy4travian/micromamba
+              # archive contains bin/micromamba
               sudo chmod +x /opt/happy4travian/micromamba/bin/micromamba
+              /opt/happy4travian/micromamba/bin/micromamba --version || true
             fi
             export MAMBA_ROOT_PREFIX=/opt/happy4travian/mamba
             echo "==> create/update env h4t (py311)"
