@@ -1,6 +1,5 @@
 import re
-from flask import Blueprint, request, send_file
-from utils.resp import ok, error
+from flask import Blueprint, jsonify, request, send_file
 import pkgutil
 from db import SessionLocal
 from models import TroopCount, TroopType, Village, GameAccount
@@ -25,14 +24,14 @@ def upload_troops():
             else:
                 db.add(TroopCount(village_id=villageId, troop_type_id=k_int, count=v_int))
         db.commit()
-    return ok({"message":"ok"})
+    return "ok"
 
 @bp.get("/api/v1/troops/aggregate")
 def troops_aggregate():
     villageId = request.args.get("villageId", type=int)
     with SessionLocal() as db:
         rows = db.query(TroopCount).filter(TroopCount.village_id == villageId).all()
-        return ok({int(r.troop_type_id): int(r.count) for r in rows})
+        return jsonify({int(r.troop_type_id): int(r.count) for r in rows})
 
 @bp.get("/api/v1/troop-types")
 def list_troop_types():
@@ -42,7 +41,7 @@ def list_troop_types():
         if tribeId is not None:
             q = q.filter(TroopType.tribe_id == tribeId)
         rows = q.all()
-        return ok([
+        return jsonify([
             {"id": r.id, "tribeId": r.tribe_id, "code": r.code, "name": r.name}
             for r in rows
         ])
@@ -54,13 +53,13 @@ def create_troop_type():
     code = data.get("code")
     name = data.get("name")
     if not tribeId or not code or not name:
-        return error("bad_request", status=400)
+        return jsonify({"error":"bad_request"}), 400
     with SessionLocal() as db:
         tt = TroopType(tribe_id=int(tribeId), code=str(code), name=str(name))
         db.add(tt)
         db.commit()
         db.refresh(tt)
-        return ok({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
+        return jsonify({"id": tt.id, "tribeId": tt.tribe_id, "code": tt.code, "name": tt.name})
 
 def _parse_travian_html_to_counts(html: str, tribe_types: list):
     text = re.sub(r"<[^>]+>", " ", html)
@@ -79,10 +78,10 @@ def parse_upload_troops():
     with SessionLocal() as db:
         v = db.query(Village).filter(Village.id == villageId).first()
         if not v:
-            return error("bad_request", message="village_not_found", status=400)
+            return jsonify({"error":"bad_request","message":"village_not_found"}), 400
         acc = db.query(GameAccount).filter(GameAccount.id == v.game_account_id).first()
         if not acc:
-            return error("bad_request", message="account_not_found", status=400)
+            return jsonify({"error":"bad_request","message":"account_not_found"}), 400
         types = db.query(TroopType).filter(TroopType.tribe_id == acc.tribe_id).order_by(TroopType.id.asc()).all()
         parsed = _parse_travian_html_to_counts(html, types)
         for tid, cnt in parsed.items():
@@ -92,7 +91,7 @@ def parse_upload_troops():
             else:
                 db.add(TroopCount(village_id=villageId, troop_type_id=int(tid), count=int(cnt)))
         db.commit()
-        return ok({"parsed": parsed, "written": True})
+        return jsonify({"parsed": parsed, "written": True})
 
 @bp.get("/api/v1/troops/params")
 def troops_params():
@@ -149,12 +148,12 @@ def troops_params():
     base_data = load_base()
     if not base_data:
         if debug:
-            return error("not_found", message="base_data_none", status=404)
-        return error("not_found", status=404)
+            return jsonify({"cwd": os.getcwd(), "reason": "base_data_none"}), 404
+        return jsonify({"error": "not_found"}), 404
     if version != "1.46":
-        return error("not_found", status=404)
+        return jsonify({"error": "not_found"}), 404
     if speed <= 1:
-        return ok(base_data)
+        return jsonify(base_data)
 
     def scale(d, k):
         out = {"version": d.get("version"), "speed": f"{k}x", "tribes": []}
@@ -174,4 +173,4 @@ def troops_params():
             out["tribes"].append(tribe_out)
         return out
 
-    return ok(scale(base_data, speed))
+    return jsonify(scale(base_data, speed))

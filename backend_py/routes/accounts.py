@@ -1,5 +1,4 @@
-from flask import Blueprint, request
-from utils.resp import ok
+from flask import Blueprint, jsonify, request
 from db import SessionLocal
 from models import GameAccount
 
@@ -16,7 +15,7 @@ def list_accounts():
         if serverId is not None:
             q = q.filter(GameAccount.server_id == serverId)
         rows = q.all()
-        return ok([
+        return jsonify([
             {
                 "id": r.id,
                 "userId": r.user_id,
@@ -35,4 +34,4 @@ def create_account():
         db.add(a)
         db.commit()
         db.refresh(a)
-        return ok({"id": a.id, "userId": a.user_id, "serverId": a.server_id, "tribeId": a.tribe_id, "inGameName": a.in_game_name})
+        return jsonify({"id": a.id, "userId": a.user_id, "serverId": a.server_id, "tribeId": a.tribe_id, "inGameName": a.in_game_name})
