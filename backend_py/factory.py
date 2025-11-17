@@ -1,5 +1,7 @@
 import logging
-from flask import Flask, request
+import json
+from flask import Flask, request, Response
+from werkzeug.exceptions import HTTPException
 from flask_cors import CORS
 from routes.system import bp as system_bp
 from routes.servers import bp as servers_bp
@@ -39,6 +41,27 @@ def create_app():
     app.register_blueprint(alliances_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(dev_bp)
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        body = {"success": False, "error": "not_found", "message": "route_not_found"}
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 404
+
+    @app.errorhandler(400)
+    def handle_400(e):
+        body = {"success": False, "error": "bad_request", "message": getattr(e, "description", "bad_request")}
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 400
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        if isinstance(e, HTTPException):
+            code = e.code
+            name = getattr(e, "name", "http_error")
+            msg = getattr(e, "description", str(e))
+            body = {"success": False, "error": name.replace(" ", "_"), "message": msg}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), code
+        body = {"success": False, "error": "server_error", "message": str(e)}
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
     try:
         Base.metadata.create_all(engine)
