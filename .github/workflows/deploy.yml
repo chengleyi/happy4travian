@@ -13,6 +13,9 @@ jobs:
         # 标记重部署时间，便于审计
         run: |
           echo "REDEPLOY_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > redeploy.marker
+      - name: Force redeploy note
+        run: |
+          echo "Force redeploy at $(date -u +%Y-%m-%dT%H:%M:%SZ) on $GITHUB_REF by $GITHUB_ACTOR"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
