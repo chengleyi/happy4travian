@@ -114,27 +114,28 @@ jobs:
               sudo tar -xzf /opt/happy4travian/backend_py.tar.gz -C /opt/happy4travian
             fi
             sudo systemctl stop happy4travian.service || true
-            echo "==> install Miniconda (Python 3.11) if missing"
-            if [ ! -x /opt/happy4travian/miniconda3/bin/conda ]; then
-              curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh
-              sudo bash /tmp/miniconda.sh -b -p /opt/happy4travian/miniconda3
+            echo "==> install micromamba (static)"
+            sudo mkdir -p /opt/happy4travian/micromamba/bin
+            if [ ! -x /opt/happy4travian/micromamba/bin/micromamba ]; then
+              curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest -o /opt/happy4travian/micromamba/bin/micromamba
+              sudo chmod +x /opt/happy4travian/micromamba/bin/micromamba
             fi
-            echo "==> create/update conda env h4t (py311)"
-            /opt/happy4travian/miniconda3/bin/conda env list || true
-            /opt/happy4travian/miniconda3/bin/conda create -y -n h4t python=3.11 || true
-            # Ensure pip up-to-date in env
-            /opt/happy4travian/miniconda3/envs/h4t/bin/python -m pip install --upgrade pip
+            export MAMBA_ROOT_PREFIX=/opt/happy4travian/mamba
+            echo "==> create/update env h4t (py311)"
+            /opt/happy4travian/micromamba/bin/micromamba create -y -n h4t python=3.11 || true
+            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
+            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -m pip install --upgrade pip
             ls -lah /opt/happy4travian || true
             ls -lah /opt/happy4travian/backend_py || true
             grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
-            /opt/happy4travian/miniconda3/envs/h4t/bin/python -c "import sys; print(sys.version)" || true
-            /opt/happy4travian/miniconda3/envs/h4t/bin/python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
+            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
+            /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
             if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
-              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/backend_py/requirements.txt
             elif [ -f /opt/happy4travian/requirements.txt ]; then
-              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install -r /opt/happy4travian/requirements.txt
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/requirements.txt
             else
-              /opt/happy4travian/miniconda3/envs/h4t/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
             fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
