@@ -2,7 +2,7 @@
 
 提供服务器列表与创建能力。
 """
-from datetime import date
+from datetime import date, datetime
 from flask import Blueprint, request
 from utils.req import get_json
 from utils.resp import ok, error
@@ -41,7 +41,14 @@ def create_server():
     s.code = code
     s.region = region
     s.speed = speed
-    s.start_date = date.fromisoformat(startDate) if startDate else None
+    if startDate:
+        try:
+            s.start_date = date.fromisoformat(startDate)
+        except Exception:
+            try:
+                s.start_date = datetime.strptime(startDate, "%Y-%m-%d").date()
+            except Exception:
+                s.start_date = None
     s.status = "active"
     with SessionLocal() as db:
         db.add(s)
