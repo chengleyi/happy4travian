@@ -9,6 +9,7 @@ from routes.villages import bp as villages_bp
 from routes.troops import bp as troops_bp
 from routes.alliances import bp as alliances_bp
 from routes.users import bp as users_bp
+from routes.dev import bp as dev_bp
 from db import Base, engine
 import models  # ensure models are loaded
 
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(troops_bp)
     app.register_blueprint(alliances_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(dev_bp)
 
     try:
         Base.metadata.create_all(engine)

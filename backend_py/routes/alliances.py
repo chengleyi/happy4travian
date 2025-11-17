@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from db import SessionLocal, engine
 from sqlalchemy import inspect
 from models import Alliance, AllianceMember, GameAccount
@@ -19,7 +19,7 @@ def list_alliances():
             if name:
                 q = q.filter(Alliance.name.like(f"%{name}%"))
             rows = q.all()
-            return jsonify([
+            data = [
                 {
                     "id": r.id,
                     "serverId": r.server_id,
@@ -30,20 +30,25 @@ def list_alliances():
                     "createdAt": r.created_at.isoformat() if r.created_at else None,
                 }
                 for r in rows
-            ])
+            ]
+            body = {"success": True, "count": len(data), "data": data}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
     except Exception:
-        return jsonify([])
+        err = {"success": False, "error": "server_error"}
+        return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.get("/api/v1/alliances/<int:aid>")
 def get_alliance(aid: int):
     try:
         if not inspect(engine).has_table("alliances"):
-            return jsonify({"error":"not_found"}), 404
+            body = {"success": False, "error": "not_found"}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 404
         with SessionLocal() as db:
             r = db.query(Alliance).filter(Alliance.id == aid).first()
             if not r:
-                return jsonify({"error":"not_found"}), 404
-            return jsonify({
+                body = {"success": False, "error": "not_found"}
+                return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 404
+            data = {
                 "id": r.id,
                 "serverId": r.server_id,
                 "name": r.name,
@@ -51,9 +56,12 @@ def get_alliance(aid: int):
                 "description": r.description,
                 "createdBy": r.created_by,
                 "createdAt": r.created_at.isoformat() if r.created_at else None,
-            })
+            }
+            body = {"success": True, "data": data}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
     except Exception:
-        return jsonify({"error":"server_error"}), 500
+        err = {"success": False, "error": "server_error"}
+        return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.post("/api/v1/alliances")
 def create_alliance():
@@ -120,7 +128,7 @@ def list_alliance_members(aid: int):
     try:
         with SessionLocal() as db:
             rows = db.query(AllianceMember).filter(AllianceMember.alliance_id == aid).all()
-            return jsonify([
+            data = [
                 {
                     "id": r.id,
                     "allianceId": r.alliance_id,
@@ -131,9 +139,12 @@ def list_alliance_members(aid: int):
                     "joinedAt": r.joined_at.isoformat() if r.joined_at else None,
                 }
                 for r in rows
-            ])
+            ]
+            body = {"success": True, "count": len(data), "data": data}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
     except Exception:
-        return jsonify([])
+        err = {"success": False, "error": "server_error"}
+        return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.post("/api/v1/alliances/<int:aid>/members")
 def add_alliance_member(aid: int):
