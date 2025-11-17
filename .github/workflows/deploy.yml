@@ -117,7 +117,20 @@ jobs:
             echo "==> install micromamba (static)"
             sudo mkdir -p /opt/happy4travian/micromamba/bin
             if [ ! -x /opt/happy4travian/micromamba/bin/micromamba ]; then
-              curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest -o /tmp/micromamba.tar.bz2
+              ARCH=$(uname -m)
+              case "$ARCH" in
+                x86_64|amd64)
+                  MURL="https://micro.mamba.pm/api/micromamba/linux-64/latest";
+                  ;;
+                aarch64|arm64)
+                  MURL="https://micro.mamba.pm/api/micromamba/linux-aarch64/latest";
+                  ;;
+                *)
+                  MURL="https://micro.mamba.pm/api/micromamba/linux-64/latest";
+                  ;;
+              esac
+              echo "micromamba url: $MURL (arch=$ARCH)"
+              curl -fsSL "$MURL" -o /tmp/micromamba.tar.bz2
               sudo tar -xjf /tmp/micromamba.tar.bz2 -C /opt/happy4travian/micromamba
               # archive contains bin/micromamba
               sudo chmod +x /opt/happy4travian/micromamba/bin/micromamba
