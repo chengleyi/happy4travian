@@ -5,7 +5,7 @@ from db import SessionLocal
 
 bp = Blueprint("dev", __name__)
 
-@bp.post("/api/v1/dev/seed")
+@bp.route("/api/v1/dev/seed", methods=["POST"])
 def dev_seed():
     try:
         ensure_tables()

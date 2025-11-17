@@ -34,8 +34,8 @@ def list_alliances():
             ]
             body = {"success": True, "count": len(data), "data": data}
             return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
-    except Exception:
-        err = {"success": False, "error": "server_error"}
+    except Exception as e:
+        err = {"success": False, "error": "server_error", "message": str(e)}
         return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.get("/api/v1/alliances/<int:aid>")
@@ -60,8 +60,8 @@ def get_alliance(aid: int):
             }
             body = {"success": True, "data": data}
             return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
-    except Exception:
-        err = {"success": False, "error": "server_error"}
+    except Exception as e:
+        err = {"success": False, "error": "server_error", "message": str(e)}
         return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.post("/api/v1/alliances")
@@ -143,8 +143,8 @@ def list_alliance_members(aid: int):
             ]
             body = {"success": True, "count": len(data), "data": data}
             return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
-    except Exception:
-        err = {"success": False, "error": "server_error"}
+    except Exception as e:
+        err = {"success": False, "error": "server_error", "message": str(e)}
         return Response(json.dumps(err, ensure_ascii=False, indent=2), mimetype="application/json"), 500
 
 @bp.post("/api/v1/alliances/<int:aid>/members")
