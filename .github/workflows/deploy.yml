@@ -134,14 +134,19 @@ jobs:
               sudo tar -xjf /tmp/micromamba.tar.bz2 -C /opt/happy4travian/micromamba
               # archive contains bin/micromamba
               sudo chmod +x /opt/happy4travian/micromamba/bin/micromamba
-              /opt/happy4travian/micromamba/bin/micromamba --version || true
+            fi
+            MAMBA_BIN=/opt/happy4travian/micromamba/bin/micromamba
+            if $MAMBA_BIN --version >/dev/null 2>&1; then
+              echo "micromamba ok"
+            else
+              echo "micromamba not executable, will fallback later"
             fi
             export MAMBA_ROOT_PREFIX=/opt/happy4travian/mamba
             echo "==> create/update env h4t (py311)"
-            if [ -x /opt/happy4travian/micromamba/bin/micromamba ]; then
-              /opt/happy4travian/micromamba/bin/micromamba create -y -n h4t python=3.11 || true
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -m pip install --upgrade pip
+            if $MAMBA_BIN --version >/dev/null 2>&1; then
+              $MAMBA_BIN create -y -n h4t python=3.11 || true
+              $MAMBA_BIN run -n h4t python -c "import sys; print(sys.version)" || true
+              $MAMBA_BIN run -n h4t python -m pip install --upgrade pip
             else
               echo "micromamba unavailable, fallback to IUS Python 3.11"
               sudo yum install -y https://repo.ius.io/ius-release-el7.rpm || true
@@ -158,15 +163,15 @@ jobs:
             ls -lah /opt/happy4travian || true
             ls -lah /opt/happy4travian/backend_py || true
             grep -n "quote_plus" /opt/happy4travian/backend_py/app.py || true
-            if [ -x /opt/happy4travian/micromamba/bin/micromamba ]; then
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import sys; print(sys.version)" || true
-              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
+            if $MAMBA_BIN --version >/dev/null 2>&1; then
+              $MAMBA_BIN run -n h4t python -c "import sys; print(sys.version)" || true
+              $MAMBA_BIN run -n h4t python -c "import flask, sqlalchemy, pymysql; import gunicorn; print('deps ok')" || true
               if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
-                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/backend_py/requirements.txt
+                $MAMBA_BIN run -n h4t pip install -r /opt/happy4travian/backend_py/requirements.txt
               elif [ -f /opt/happy4travian/requirements.txt ]; then
-                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install -r /opt/happy4travian/requirements.txt
+                $MAMBA_BIN run -n h4t pip install -r /opt/happy4travian/requirements.txt
               else
-                /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
+                $MAMBA_BIN run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
               fi
             else
               if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
@@ -221,8 +226,13 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
-            /opt/happy4travian/venv/bin/pip install openpyxl
-            /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
+            if /opt/happy4travian/micromamba/bin/micromamba --version >/dev/null 2>&1; then
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install openpyxl || true
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
+            elif [ -x /opt/happy4travian/py311/bin/python ]; then
+              /opt/happy4travian/py311/bin/pip install openpyxl || true
+              /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
+            fi
             ls -lah /opt/happy4travian/backend_py/exports || true
       - name: Server-side smoke test (authoritative)
         # 在服务器本地进行 API 冒烟测试
@@ -255,7 +265,11 @@ jobs:
             set -a
             [ -f /etc/happy4travian/happy4travian.env ] && . /etc/happy4travian/happy4travian.env || true
             set +a
-            /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/seed_basic_data.py || true
+            if /opt/happy4travian/micromamba/bin/micromamba --version >/dev/null 2>&1; then
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python /opt/happy4travian/backend_py/tools/seed_basic_data.py || true
+            elif [ -x /opt/happy4travian/py311/bin/python ]; then
+              /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/seed_basic_data.py || true
+            fi
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
             curl -s -o /dev/null -w "members:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances/1/members || true
       - name: Run DB migrations (add missing columns)
@@ -271,7 +285,11 @@ jobs:
             set -a
             [ -f /etc/happy4travian/happy4travian.env ] && . /etc/happy4travian/happy4travian.env || true
             set +a
-            /opt/happy4travian/venv/bin/python /opt/happy4travian/backend_py/tools/migrations.py || true
+            if /opt/happy4travian/micromamba/bin/micromamba --version >/dev/null 2>&1; then
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python /opt/happy4travian/backend_py/tools/migrations.py || true
+            elif [ -x /opt/happy4travian/py311/bin/python ]; then
+              /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/migrations.py || true
+            fi
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
       - name: External health probe (JSON)
         # 从 Runner 侧对外部地址进行健康探测
