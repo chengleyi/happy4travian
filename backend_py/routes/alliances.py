@@ -1,5 +1,6 @@
 import json
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, request, Response
+from utils.resp import ok, error
 from db import SessionLocal, engine
 from sqlalchemy import inspect
 from models import Alliance, AllianceMember, GameAccount
@@ -100,7 +101,7 @@ def update_alliance(aid: int):
     with SessionLocal() as db:
         a = db.query(Alliance).filter(Alliance.id == aid).first()
         if not a:
-            return jsonify({"error":"not_found"}), 404
+            return error("not_found", status=404)
         if "name" in data and data["name"]:
             a.name = str(data["name"])
         if "tag" in data and data["tag"]:
@@ -109,7 +110,7 @@ def update_alliance(aid: int):
             a.description = str(data["description"]) if data["description"] is not None else None
         db.commit()
         db.refresh(a)
-        return jsonify({
+        return ok({
             "id": a.id,
             "serverId": a.server_id,
             "name": a.name,
@@ -124,10 +125,10 @@ def delete_alliance(aid: int):
     with SessionLocal() as db:
         a = db.query(Alliance).filter(Alliance.id == aid).first()
         if not a:
-            return jsonify({"error":"not_found"}), 404
+            return error("not_found", status=404)
         db.delete(a)
         db.commit()
-        return "ok"
+        return ok({"deleted": True})
 
 @bp.get("/api/v1/alliances/<int:aid>/members")
 def list_alliance_members(aid: int):
