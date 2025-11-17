@@ -155,12 +155,13 @@ def add_alliance_member(aid: int):
     with SessionLocal() as db:
         acc = db.query(GameAccount).filter(GameAccount.id == int(gameAccountId)).first()
         if not acc:
-            return jsonify({"error":"bad_request","message":"account_not_found"}), 400
+            body = {"success": False, "error": "bad_request", "message": "account_not_found"}
+            return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json"), 400
         m = AllianceMember(alliance_id=aid, game_account_id=acc.id, server_id=acc.server_id, role=str(role), join_status="active")
         db.add(m)
         db.commit()
         db.refresh(m)
-        return jsonify({
+        body = {"success": True, "data": {
             "id": m.id,
             "allianceId": m.alliance_id,
             "gameAccountId": m.game_account_id,
@@ -168,7 +169,8 @@ def add_alliance_member(aid: int):
             "role": m.role,
             "joinStatus": m.join_status,
             "joinedAt": m.joined_at.isoformat() if m.joined_at else None,
-        })
+        }}
+        return Response(json.dumps(body, ensure_ascii=False, indent=2), mimetype="application/json")
 
 @bp.put("/api/v1/alliances/<int:aid>/members/<int:mid>")
 def update_alliance_member(aid: int, mid: int):
