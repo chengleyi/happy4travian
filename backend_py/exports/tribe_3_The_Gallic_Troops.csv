@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+3,The Gallic Troops,The Gallic Troops,1,Phalanx,Phalanx,i,15,40,50,7,35,100,130,55,30,1,1040,00:17:20,4920,01:22:00
+3,The Gallic Troops,The Gallic Troops,2,Swordsman,Swordsman,i,65,35,20,6,45,140,150,185,60,1,1440,00:24:00,6120,01:42:00
+3,The Gallic Troops,The Gallic Troops,3,Pathfinder,Pathfinder,c,0,20,10,17,0,170,150,20,40,2,1360,00:22:40,5880,01:38:00
+3,The Gallic Troops,The Gallic Troops,4,Theutates Thunder,Theutates Thunder,c,100,25,40,19,75,350,450,230,60,2,2480,00:41:20,9240,02:34:00
+3,The Gallic Troops,The Gallic Troops,5,Druidrider,Druidrider,c,45,115,55,16,35,360,330,280,120,2,2560,00:42:40,9480,02:38:00
+3,The Gallic Troops,The Gallic Troops,6,Haeduan,Haeduan,c,140,60,165,13,65,500,620,675,170,3,3120,00:52:00,11160,03:06:00
+3,The Gallic Troops,The Gallic Troops,7,Ram,Ram,i,50,30,105,4,0,950,555,330,75,3,5000,01:23:20,16800,04:40:00
+3,The Gallic Troops,The Gallic Troops,8,Trebuchet,Trebuchet,i,70,45,10,3,0,960,1450,630,90,6,9000,02:30:00,28800,08:00:00
+3,The Gallic Troops,The Gallic Troops,9,Chieftain,Chieftain,i,40,50,50,5,0,30750,45400,31000,37500,4,90700,1.01:11:40,24475,06:47:55
+3,The Gallic Troops,The Gallic Troops,10,Settler,Settler,i,0,80,80,5,3000,4400,5600,4200,3900,1,22700,06:18:20,0,0:00:00

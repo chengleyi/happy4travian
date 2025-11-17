@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+8,The Spartans,The Spartans,1,Hoplite,Hoplite,i,50,35,30,6,60,110,185,110,35,1,1700,00:28:20,6900,01:55:00
+8,The Spartans,The Spartans,2,Sentinel,Sentinel,i,0,40,22,9,0,185,150,35,75,1,1232,00:20:32,5496,01:31:36
+8,The Spartans,The Spartans,3,Shieldsman,Shieldsman,i,40,85,45,8,40,145,95,245,45,1,1936,00:32:16,7608,02:06:48
+8,The Spartans,The Spartans,4,Twinsteel Therion,Twinsteel Therion,i,90,55,40,6,50,130,200,400,65,1,2112,00:35:12,8136,02:15:36
+8,The Spartans,The Spartans,5,Elpida Rider,Elpida Rider,c,55,120,90,16,110,555,445,330,110,2,2816,00:46:56,10248,02:50:48
+8,The Spartans,The Spartans,6,Corinthian Crusher,Corinthian Crusher,c,195,80,75,9,80,660,495,995,165,3,3432,00:57:12,12096,03:21:36
+8,The Spartans,The Spartans,7,Ram,Ram,i,65,30,80,4,0,525,260,790,130,3,4620,01:17:00,15660,04:21:00
+8,The Spartans,The Spartans,8,Ballista,Ballista,i,50,60,10,3,0,550,1240,825,135,6,9900,02:45:00,28800,08:00:00
+8,The Spartans,The Spartans,9,Ephor,Ephor,i,40,60,40,4,0,33450,30665,36240,13935,4,77550,21:32:30,21188,05:53:08
+8,The Spartans,The Spartans,10,Settler,Settler,i,10,80,80,5,3000,5115,5580,6045,3255,1,34100,09:28:20,0,0:00:00

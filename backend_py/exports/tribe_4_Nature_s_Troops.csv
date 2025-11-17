@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+4,Nature's Troops,Nature's Troops,1,Rat,Rat,i,10,25,20,20,0,0,0,0,100,1,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,2,Spider,Spider,i,20,35,40,20,0,0,0,0,0,1,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,3,Serpent,Serpent,i,60,40,60,20,0,0,0,0,0,1,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,4,Bat,Bat,i,80,66,50,20,0,0,0,0,0,1,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,5,Wild boar,Wild boar,i,50,70,33,20,0,0,0,0,0,2,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,6,Wolf,Wolf,i,100,80,70,20,0,0,0,0,0,2,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,7,Bear,Bear,i,250,140,200,20,0,0,0,0,0,3,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,8,Crocodile,Crocodile,i,450,380,240,20,0,0,0,0,0,3,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,9,Tiger,Tiger,i,200,170,250,20,0,0,0,0,0,3,0,0:00:00,1800,00:30:00
+4,Nature's Troops,Nature's Troops,10,Elephant,Elephant,i,600,440,520,20,0,0,0,0,0,5,0,0:00:00,0,0:00:00

@@ -8,25 +8,28 @@ bp = Blueprint("alliances", __name__)
 def list_alliances():
     serverId = request.args.get("serverId", type=int)
     name = request.args.get("name", type=str)
-    with SessionLocal() as db:
-        q = db.query(Alliance)
-        if serverId is not None:
-            q = q.filter(Alliance.server_id == serverId)
-        if name:
-            q = q.filter(Alliance.name.like(f"%{name}%"))
-        rows = q.all()
-        return jsonify([
-            {
-                "id": r.id,
-                "serverId": r.server_id,
-                "name": r.name,
-                "tag": r.tag,
-                "description": r.description,
-                "createdBy": r.created_by,
-                "createdAt": r.created_at.isoformat() if r.created_at else None,
-            }
-            for r in rows
-        ])
+    try:
+        with SessionLocal() as db:
+            q = db.query(Alliance)
+            if serverId is not None:
+                q = q.filter(Alliance.server_id == serverId)
+            if name:
+                q = q.filter(Alliance.name.like(f"%{name}%"))
+            rows = q.all()
+            return jsonify([
+                {
+                    "id": r.id,
+                    "serverId": r.server_id,
+                    "name": r.name,
+                    "tag": r.tag,
+                    "description": r.description,
+                    "createdBy": r.created_by,
+                    "createdAt": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in rows
+            ])
+    except Exception:
+        return jsonify([])
 
 @bp.get("/api/v1/alliances/<int:aid>")
 def get_alliance(aid: int):
@@ -106,20 +109,23 @@ def delete_alliance(aid: int):
 
 @bp.get("/api/v1/alliances/<int:aid>/members")
 def list_alliance_members(aid: int):
-    with SessionLocal() as db:
-        rows = db.query(AllianceMember).filter(AllianceMember.alliance_id == aid).all()
-        return jsonify([
-            {
-                "id": r.id,
-                "allianceId": r.alliance_id,
-                "gameAccountId": r.game_account_id,
-                "serverId": r.server_id,
-                "role": r.role,
-                "joinStatus": r.join_status,
-                "joinedAt": r.joined_at.isoformat() if r.joined_at else None,
-            }
-            for r in rows
-        ])
+    try:
+        with SessionLocal() as db:
+            rows = db.query(AllianceMember).filter(AllianceMember.alliance_id == aid).all()
+            return jsonify([
+                {
+                    "id": r.id,
+                    "allianceId": r.alliance_id,
+                    "gameAccountId": r.game_account_id,
+                    "serverId": r.server_id,
+                    "role": r.role,
+                    "joinStatus": r.join_status,
+                    "joinedAt": r.joined_at.isoformat() if r.joined_at else None,
+                }
+                for r in rows
+            ])
+    except Exception:
+        return jsonify([])
 
 @bp.post("/api/v1/alliances/<int:aid>/members")
 def add_alliance_member(aid: int):

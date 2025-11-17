@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+7,The Huns Troops,The Huns Troops,1,Mercenary,Mercenary,i,35,40,30,6,50,130,80,40,40,1,810,00:13:30,4230,01:10:30
+7,The Huns Troops,The Huns Troops,2,Bowman,Bowman,i,50,30,10,6,30,140,110,60,60,1,1120,00:18:40,5160,01:26:00
+7,The Huns Troops,The Huns Troops,3,Spotter,Spotter,c,0,20,10,19,0,170,150,20,40,2,1360,00:22:40,5880,01:38:00
+7,The Huns Troops,The Huns Troops,4,Steppe Rider,Steppe Rider,c,120,30,15,16,75,290,370,190,45,2,2400,00:40:00,9000,02:30:00
+7,The Huns Troops,The Huns Troops,5,Marksman,Marksman,c,110,80,70,15,105,320,350,330,50,2,2480,00:41:20,9240,02:34:00
+7,The Huns Troops,The Huns Troops,6,Marauder,Marauder,c,180,60,40,14,80,450,560,610,140,3,2990,00:49:50,10770,02:59:30
+7,The Huns Troops,The Huns Troops,7,Ram,Ram,i,65,30,90,4,0,1060,330,360,70,3,4400,01:13:20,15000,04:10:00
+7,The Huns Troops,The Huns Troops,8,Catapult,Catapult,i,45,55,10,3,0,950,1280,620,60,6,9000,02:30:00,28800,08:00:00
+7,The Huns Troops,The Huns Troops,9,Logades,Logades,i,50,40,30,5,0,37200,27600,25200,27600,4,90700,1.01:11:40,24475,06:47:55
+7,The Huns Troops,The Huns Troops,10,Settler,Settler,i,10,80,80,5,3000,6100,4600,4800,5400,1,28950,08:02:30,0,0:00:00

@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+2,The Teutonic Troops,The Teutonic Troops,1,Maceman,Maceman,i,40,20,5,7,60,95,75,40,40,1,720,00:12:00,3960,01:06:00
+2,The Teutonic Troops,The Teutonic Troops,2,Spearman,Spearman,i,10,35,60,7,40,145,70,85,40,1,1120,00:18:40,5160,01:26:00
+2,The Teutonic Troops,The Teutonic Troops,3,Axeman,Axeman,i,60,30,30,6,50,130,120,170,70,1,1200,00:20:00,5400,01:30:00
+2,The Teutonic Troops,The Teutonic Troops,4,Scout,Scout,c,0,10,5,9,0,160,100,50,50,1,1120,00:18:40,5160,01:26:00
+2,The Teutonic Troops,The Teutonic Troops,5,Paladin,Paladin,c,55,100,40,10,110,370,270,290,75,2,2400,00:40:00,9000,02:30:00
+2,The Teutonic Troops,The Teutonic Troops,6,Teutonic Knight,Teutonic Knight,c,150,50,75,9,80,450,515,480,80,3,2960,00:49:20,10680,02:58:00
+2,The Teutonic Troops,The Teutonic Troops,7,Ram,Ram,i,65,30,80,4,0,1000,300,350,70,3,4200,01:10:00,14400,04:00:00
+2,The Teutonic Troops,The Teutonic Troops,8,Catapult,Catapult,i,50,60,10,3,0,900,1200,600,60,6,9000,02:30:00,28800,08:00:00
+2,The Teutonic Troops,The Teutonic Troops,9,Chief,Chief,i,40,60,40,4,0,35500,26600,25000,27200,4,70500,19:35:00,19425,05:23:45
+2,The Teutonic Troops,The Teutonic Troops,10,Settler,Settler,i,10,80,80,5,3000,5800,4400,4600,5200,1,31000,08:36:40,0,0:00:00

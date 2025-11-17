@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+9,The Vikings,The Vikings,1,Thrall,Thrall,i,45,22,5,7,55,95,80,50,40,1,800,00:13:20,4200,01:10:00
+9,The Vikings,The Vikings,2,Shield Maiden,Shield Maiden,i,20,50,30,7,40,125,70,85,40,1,1080,00:18:00,5040,01:24:00
+9,The Vikings,The Vikings,3,Berserker,Berserker,i,70,30,25,5,75,235,220,200,70,2,1550,00:25:50,6450,01:47:30
+9,The Vikings,The Vikings,4,Heimdall’s Eye,Heimdall’s Eye,i,0,10,5,9,0,155,95,50,50,1,1120,00:18:40,5160,01:26:00
+9,The Vikings,The Vikings,5,Huskarl Rider,Huskarl Rider,c,45,95,100,12,110,385,295,290,85,2,2650,00:44:10,9750,02:42:30
+9,The Vikings,The Vikings,6,Valkyrie’s Blessing,Valkyrie’s Blessing,c,160,50,75,9,80,475,535,515,100,2,3060,00:51:00,10980,03:03:00
+9,The Vikings,The Vikings,7,Ram,Ram,i,65,30,80,4,0,950,325,375,70,2,4200,01:10:00,13680,03:48:00
+9,The Vikings,The Vikings,8,Catapult,Catapult,i,50,60,10,3,0,850,1225,625,60,6,9000,02:30:00,28800,08:00:00
+9,The Vikings,The Vikings,9,Jarl,Jarl,i,40,40,60,5,0,35500,26600,25000,27200,4,70500,19:35:00,19425,05:23:45
+9,The Vikings,The Vikings,10,Settler,Settler,i,10,80,80,5,3000,5800,4600,4800,4800,1,31000,08:36:40,0,0:00:00

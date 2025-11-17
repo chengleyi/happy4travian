@@ -1,0 +1,11 @@
+﻿TribeId,Tribe(EN),Tribe(ZH),UnitId,Name(EN),Name(ZH),Type,Off,Def_i,Def_c,Speed,Cap,Cost_Lumber,Cost_Clay,Cost_Iron,Cost_Crop,Upkeep,TrainTime_s,TrainTime,ResearchTime_s,ResearchTime
+1,The Roman Troops,The Roman Troops,1,Legionnaire,Legionnaire,i,40,35,50,6,50,120,100,150,30,1,1600,00:26:40,6600,01:50:00
+1,The Roman Troops,The Roman Troops,2,Praetorian,Praetorian,i,30,65,35,5,20,100,130,160,70,1,1760,00:29:20,7080,01:58:00
+1,The Roman Troops,The Roman Troops,3,Imperian,Imperian,i,70,40,25,7,50,150,160,210,80,1,1920,00:32:00,7560,02:06:00
+1,The Roman Troops,The Roman Troops,4,Equites Legati,Equites Legati,c,0,20,10,16,0,140,160,20,40,2,1360,00:22:40,5880,01:38:00
+1,The Roman Troops,The Roman Troops,5,Equites Imperatoris,Equites Imperatoris,c,120,65,50,14,100,550,440,320,100,3,2640,00:44:00,9720,02:42:00
+1,The Roman Troops,The Roman Troops,6,Equites Caesaris,Equites Caesaris,c,180,80,105,10,70,550,640,800,180,4,3520,00:58:40,12360,03:26:00
+1,The Roman Troops,The Roman Troops,7,Battering ram,Battering ram,i,60,30,75,4,0,900,360,500,70,3,4600,01:16:40,15600,04:20:00
+1,The Roman Troops,The Roman Troops,8,Fire Catapult,Fire Catapult,i,75,60,10,3,0,950,1350,600,90,6,9000,02:30:00,28800,08:00:00
+1,The Roman Troops,The Roman Troops,9,Senator,Senator,i,50,40,30,4,0,30750,27200,45000,37500,5,90700,1.01:11:40,24475,06:47:55
+1,The Roman Troops,The Roman Troops,10,Settler,Settler,i,0,80,80,5,3000,4600,4200,5800,4400,1,26900,07:28:20,0,0:00:00
