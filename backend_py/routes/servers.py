@@ -4,6 +4,7 @@
 """
 from datetime import date, datetime
 from flask import Blueprint, request
+import logging
 from utils.req import get_json
 from utils.resp import ok, error
 from db import SessionLocal
@@ -30,6 +31,12 @@ def list_servers():
 
 @bp.post("/api/v1/servers")
 def create_server():
+    try:
+        ct = request.headers.get("Content-Type")
+        rb = request.get_data(cache=True, as_text=True)
+        logging.info("diag servers ct=%s body=%s", ct, rb[:256] if rb else None)
+    except Exception:
+        pass
     data = get_json()
     code = data.get("code")
     region = data.get("region")
