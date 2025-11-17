@@ -8,3 +8,8 @@
 /.vscode/
 /bin/
 /.DS_Store
+# 生成物与临时文件
+/backend_py/exports/
+/backend_py/data/scrape_debug.txt
+/tmp_scrape_output.txt
+~$*.xlsx
