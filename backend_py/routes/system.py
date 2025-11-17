@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request, send_file
+from utils.resp import ok, error
 import pkgutil
 from db import engine
 import os, json, urllib.request
@@ -7,20 +8,20 @@ bp = Blueprint("system", __name__)
 
 @bp.get("/api/v1/health")
 def health():
-    return "ok"
+    return ok({"message":"ok"})
 
 @bp.get("/api/v1/healthz")
 def healthz():
-    return "ok"
+    return ok({"message":"ok"})
 
 @bp.get("/api/v1/db/ping")
 def db_ping():
     try:
         with engine.connect() as conn:
             conn.execute("SELECT 1")
-        return "ok"
+        return ok({"message":"ok"})
     except Exception:
-        return "error"
+        return error("db_error")
 
 @bp.get("/api/v1/troops_params")
 def troops_params_alias():
