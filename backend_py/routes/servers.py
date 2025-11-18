@@ -31,6 +31,16 @@ def list_servers():
 
 @bp.post("/api/v1/servers")
 def create_server():
+    """创建服务器
+
+    参数（JSON）：
+    - `code`：服务器编码（必填）
+    - `region`：区域（可选）
+    - `speed`：倍速（如 `1x`，可选）
+    - `startDate`：开服日期（`YYYY-MM-DD`，可选）
+
+    返回：新建服务器对象 `{ id, code, region, speed, startDate, status }`
+    """
     try:
         pass
     except Exception:

@@ -85,6 +85,18 @@ def dev_e2e_run():
                 return r.status_code, r.json()
             except Exception:
                 return r.status_code, {"raw": r.text}
+        def _put(path, payload):
+            r = requests.put(base + path, json=payload)
+            try:
+                return r.status_code, r.json()
+            except Exception:
+                return r.status_code, {"raw": r.text}
+        def _delete(path):
+            r = requests.delete(base + path)
+            try:
+                return r.status_code, r.json()
+            except Exception:
+                return r.status_code, {"raw": r.text}
     else:
         import urllib.request
         def _post(path, payload):
@@ -112,16 +124,45 @@ def dev_e2e_run():
                         return sc, {"raw": txt}
             except Exception as e:
                 return 500, {"error": str(e)}
+        def _put(path, payload):
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(base + path, data=data, headers={"Content-Type": "application/json; charset=utf-8"}, method="PUT")
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    sc = resp.getcode()
+                    txt = resp.read().decode("utf-8", errors="replace")
+                    try:
+                        return sc, json.loads(txt)
+                    except Exception:
+                        return sc, {"raw": txt}
+            except Exception as e:
+                return 500, {"error": str(e)}
+        def _delete(path):
+            req = urllib.request.Request(base + path, method="DELETE")
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    sc = resp.getcode()
+                    txt = resp.read().decode("utf-8", errors="replace")
+                    try:
+                        return sc, json.loads(txt)
+                    except Exception:
+                        return sc, {"raw": txt}
+            except Exception as e:
+                return 500, {"error": str(e)}
     # users
     sc, u = _post("/users", {"nickname": "PyReqUser-" + ts})
     results["users"] = {"status": sc, "resp": u}
     uid = u.get("data", {}).get("id")
+    results["health"] = {"status": _get("/health")[0]}
+    results["healthz"] = {"status": _get("/healthz")[0]}
+    results["db_ping"] = {"status": _get("/db/ping")[0]}
     # servers
     sc, s = _post("/servers", {"code": "com-pyreq-" + ts, "region": "CN", "speed": "x1", "startDate": "2025-11-20"})
     results["servers"] = {"status": sc, "resp": s}
     sid = s.get("data", {}).get("id")
     # tribes
-    sc, t = _post("/tribes", {"code": "PYROM-" + ts, "name": "罗马部落"})
+    short = ts[-8:]
+    sc, t = _post("/tribes", {"code": "PRM" + short, "name": "罗马部落"})
     results["tribes"] = {"status": sc, "resp": t}
     tid = t.get("data", {}).get("id")
     # accounts
@@ -131,6 +172,25 @@ def dev_e2e_run():
     # villages
     sc, v = _post("/villages", {"serverId": sid, "gameAccountId": aid, "name": "村庄-" + ts, "x": 110, "y": -50})
     results["villages"] = {"status": sc, "resp": v}
+    vid = v.get("data", {}).get("id")
+    # troop types
+    sc, tt1 = _post("/troop-types", {"tribeId": tid, "code": "T1-" + ts, "name": "步兵-" + ts})
+    sc, tt2 = _post("/troop-types", {"tribeId": tid, "code": "T2-" + ts, "name": "骑兵-" + ts})
+    results["troop_types"] = {"status": 201, "resp": [tt1, tt2]}
+    sc, tlist = _get("/troop-types?tribeId=" + str(tid))
+    results["troop_types_list"] = {"status": sc, "resp": tlist}
+    try:
+        ids = [x.get("id") for x in tlist.get("data", []) if x.get("code") in ["T1-" + ts, "T2-" + ts]]
+    except Exception:
+        ids = []
+    if len(ids) >= 2 and vid:
+        counts = {str(ids[0]): 200, str(ids[1]): 150}
+        sc, up = _post("/troops/upload", {"villageId": vid, "counts": counts})
+        results["troops_upload"] = {"status": sc, "resp": up}
+        sc, ag = _get("/troops/aggregate?villageId=" + str(vid))
+        results["troops_aggregate"] = {"status": sc, "resp": ag}
+        sc, pu = _post("/troops/parse-upload", {"villageId": vid, "html": "<span>100 200</span>"})
+        results["troops_parse"] = {"status": sc, "resp": pu}
     # alliances
     sc, al = _post("/alliances", {"serverId": sid, "name": "联盟-" + ts, "tag": "联", "description": "中文演示", "createdBy": uid})
     results["alliances"] = {"status": sc, "resp": al}
@@ -138,12 +198,45 @@ def dev_e2e_run():
     if alid:
         scg, alget = _get("/alliances/" + str(alid))
         results["alliances_get"] = {"status": scg, "resp": alget}
+        sc, mem_add = _post("/alliances/" + str(alid) + "/members", {"gameAccountId": aid, "role": "member"})
+        results["alliances_member_add"] = {"status": sc, "resp": mem_add}
+        sc, mem_list = _get("/alliances/" + str(alid) + "/members")
+        results["alliances_member_list"] = {"status": sc, "resp": mem_list}
+        try:
+            mid = mem_add.get("data", {}).get("id")
+        except Exception:
+            mid = None
+        if mid:
+            sc, mem_up = _put("/alliances/" + str(alid) + "/members/" + str(mid), {"role": "leader", "joinStatus": "active"})
+            results["alliances_member_update"] = {"status": sc, "resp": mem_up}
+            sc, mem_del = _delete("/alliances/" + str(alid) + "/members/" + str(mid))
+            results["alliances_member_delete"] = {"status": sc, "resp": mem_del}
     # troops params
     sc, tp = _get("/troops/params?version=1.46&speed=3x")
     results["troops_params"] = {"status": sc, "resp": tp}
     # negative
     sc, bad = _get("/alliances?serverId=abc")
     results["alliances_bad"] = {"status": sc, "resp": bad}
+    sc, inv = _get("/alliances/999999")
+    results["alliances_not_found"] = {"status": sc, "resp": inv}
+    sc, tp_bad = _get("/troops/params?version=0&speed=3x")
+    results["troops_params_bad"] = {"status": sc, "resp": tp_bad}
+    sc, srv_bad = _post("/servers", {})
+    results["servers_bad"] = {"status": sc, "resp": srv_bad}
+    sc, al_bad = _post("/alliances", {"serverId": sid})
+    results["alliances_bad_post"] = {"status": sc, "resp": al_bad}
+    sc, sl = _get("/servers")
+    results["servers_list"] = {"status": sc, "resp": sl}
+    sc, ul = _get("/users")
+    results["users_list"] = {"status": sc, "resp": ul}
+    sc, tl = _get("/tribes")
+    results["tribes_list"] = {"status": sc, "resp": tl}
+    sc, vl = _get("/villages?serverId=" + str(sid))
+    results["villages_list"] = {"status": sc, "resp": vl}
+    sc, alql = _get("/alliances?serverId=" + str(sid))
+    results["alliances_query_list"] = {"status": sc, "resp": alql}
+    sc, acl = _get("/accounts?serverId=" + str(sid))
+    results["accounts_list"] = {"status": sc, "resp": acl}
     return ok(results)
 
 @bp.route("/api/v1/dev/alliances/<int:aid>/fixdesc", methods=["POST"])

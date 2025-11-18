@@ -3,5 +3,43 @@
   <text class="title">Happy4Travian Demo</text>
   <button bindtap="checkHealth">检查后端健康</button>
   <text class="status">{{health}}</text>
-  
+  <button bindtap="runAllTests">运行所有接口测试</button>
+  <view class="controls">
+    <view class="row">
+      <text>启用写入测试</text>
+      <switch checked="{{writeEnabled}}" bindchange="toggleWriteEnabled" />
+    </view>
+    <view class="row">
+      <button bindtap="runReadTests">仅运行仅读接口</button>
+      <button bindtap="runWriteTests" disabled="{{!writeEnabled}}">仅运行写入接口</button>
+    </view>
+  </view>
+  <view class="section">
+    <text class="subtitle">仅读接口</text>
+    <block wx:for="{{readList}}" wx:key="key">
+      <view class="row">
+        <button data-key="{{item.key}}" bindtap="runOneRead">测试 {{item.label}}</button>
+        <text class="status">{{endpointStatuses[item.key] && endpointStatuses[item.key].status}}</text>
+        <text class="summary">{{endpointStatuses[item.key] && endpointStatuses[item.key].summary}}</text>
+      </view>
+    </block>
+  </view>
+  <view class="section">
+    <text class="subtitle">写入接口</text>
+    <block wx:for="{{writeList}}" wx:key="key">
+      <view class="row">
+        <button data-key="{{item.key}}" bindtap="runOneWrite" disabled="{{!writeEnabled}}">测试 {{item.label}}</button>
+        <text class="status">{{endpointStatuses[item.key] && endpointStatuses[item.key].status}}</text>
+        <text class="summary">{{endpointStatuses[item.key] && endpointStatuses[item.key].summary}}</text>
+      </view>
+    </block>
+  </view>
+  <view>
+    <block wx:for="{{testResults}}" wx:key="name">
+      <view>
+        <text>{{item.name}}：{{item.status}}</text>
+        <text>{{item.summary}}</text>
+      </view>
+    </block>
+  </view>
 </view>

@@ -100,7 +100,15 @@ def build_sheet_rows(data):
     return rows
 
 def export_xlsx(json_path: str, out_path: str):
-    """生成最小 xlsx 并返回路径"""
+    """生成最小 xlsx 并返回路径
+
+    参数：
+    - `json_path`：静态兵种参数 JSON 路径
+    - `out_path`：输出 Excel 文件路径（Zip 打包生成）
+
+    返回：
+    - 输出文件绝对路径
+    """
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     sheet_rows = build_sheet_rows(data)

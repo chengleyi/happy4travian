@@ -19,6 +19,14 @@ def list_tribes():
 
 @bp.post("/api/v1/tribes")
 def create_tribe():
+    """创建部落
+
+    参数（JSON）：
+    - `code`：部落编码
+    - `name`：部落名称
+
+    返回：新建部落对象 `{ id, code, name }`
+    """
     data = get_json()
     code = data.get("code")
     name = data.get("name")

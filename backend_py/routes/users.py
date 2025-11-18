@@ -12,6 +12,13 @@ bp = Blueprint("users", __name__)
 
 @bp.post("/api/v1/users")
 def create_user():
+    """创建用户（仅包含昵称与状态）
+
+    参数（JSON）：
+    - `nickname`：昵称（可选，默认 `user`）
+
+    返回：新建用户对象 `{ id, nickname }`
+    """
     data = get_json() or {}
     nickname = data.get("nickname") or "user"
     with SessionLocal() as db:

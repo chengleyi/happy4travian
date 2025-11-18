@@ -12,7 +12,16 @@ bp = Blueprint("villages", __name__)
 
 @bp.get("/api/v1/villages")
 def list_villages():
-    """列出村庄（可筛选）"""
+    """列出村庄（可筛选）
+
+    参数（Query）：
+    - `serverId`：按服务器筛选（可选）
+    - `gameAccountId`：按账号筛选（可选）
+
+    返回：
+    - 成功：`{ success: true, data: Array<{id,serverId,gameAccountId,name,x,y}>, count }`
+    - 失败：统一错误结构
+    """
     serverId_raw = request.args.get("serverId")
     gameAccountId_raw = request.args.get("gameAccountId")
     serverId = None
@@ -48,6 +57,16 @@ def list_villages():
 
 @bp.post("/api/v1/villages")
 def create_village():
+    """创建村庄
+
+    参数（JSON）：
+    - `serverId`：服务器 ID
+    - `gameAccountId`：账号 ID
+    - `name`：村庄名
+    - `x`、`y`：坐标
+
+    返回：新建村庄对象 `{ id, serverId, gameAccountId, name, x, y }`
+    """
     data = get_json()
     v = Village(server_id=int(data.get("serverId")), game_account_id=int(data.get("gameAccountId")), name=str(data.get("name")), x=int(data.get("x")), y=int(data.get("y")))
     with SessionLocal() as db:

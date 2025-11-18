@@ -17,7 +17,11 @@ def fmt_time(sec):
     return str(timedelta(seconds=int(sec)))
 
 def load_json(p):
-    """容错读取 JSON（utf-8 与 utf-8-sig）"""
+    """容错读取 JSON（utf-8 与 utf-8-sig）
+
+    参数：`p` 文件路径
+    返回：解析后的字典
+    """
     try:
         with open(p, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -26,7 +30,15 @@ def load_json(p):
             return json.load(f)
 
 def build_rows(base, cn_map, k):
-    """构建指定倍速 k 的表格行"""
+    """构建指定倍速 k 的表格行
+
+    参数：
+    - `base`：基础 1x JSON 数据
+    - `cn_map`：中文映射（包含标题与中文名）
+    - `k`：倍速（1/2/3/5/10）
+
+    返回：二维数组（首行是标题）
+    """
     rows = []
     headers = cn_map["headers"]
     rows.append(headers)
@@ -56,7 +68,15 @@ def build_rows(base, cn_map, k):
     return rows
 
 def export_multi(base_path, cn_path, out_path):
-    """导出多工作表 xlsx 并返回路径"""
+    """导出多工作表 xlsx 并返回路径
+
+    参数：
+    - `base_path`：基础 1x JSON 路径
+    - `cn_path`：中文映射 JSON 路径
+    - `out_path`：输出 xlsx 路径
+
+    返回：输出文件绝对路径
+    """
     base = load_json(base_path)
     cn = load_json(cn_path)
     wb = Workbook()

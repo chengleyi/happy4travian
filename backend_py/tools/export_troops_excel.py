@@ -26,7 +26,15 @@ def fmt_time(sec):
     return str(timedelta(seconds=int(sec)))
 
 def export_excel(json_path: str, out_path: str):
-    """从 JSON 生成 xlsx 并返回输出路径"""
+    """从 JSON 生成 xlsx 并返回输出路径
+
+    参数：
+    - `json_path`：静态兵种参数 JSON 文件路径
+    - `out_path`：输出 xlsx 文件路径（不存在目录将自动创建）
+
+    返回：
+    - 写入的 xlsx 文件绝对路径
+    """
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     wb = Workbook()
@@ -99,7 +107,10 @@ def export_excel(json_path: str, out_path: str):
     return out_path
 
 def main():
-    """命令行入口：导出默认路径的 xlsx"""
+    """命令行入口：导出默认路径的 xlsx
+
+    默认读取 `../data/troops_t4.6_1x.json`，写入到 `../exports/troops_t4.6_1x.xlsx`。
+    """
     base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "troops_t4.6_1x.json"))
     out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exports", "troops_t4.6_1x.xlsx"))
     path = export_excel(base, out_path)
