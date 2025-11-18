@@ -4,6 +4,7 @@
 """
 from flask import Blueprint
 import time
+import json
 from utils.resp import ok, error
 from tools.migrations import migrate_missing_columns
 from tools.seed_basic_data import ensure_tables, seed_tribes, seed_server, seed_users_accounts_villages, seed_alliance, seed_troop_types_from_json
@@ -63,25 +64,54 @@ def dev_charset():
 @bp.route("/api/v1/dev/e2e-run", methods=["POST"])
 def dev_e2e_run():
     """在服务器侧使用 requests 远端调用自身 API，执行 E2E 并返回汇总"""
+    use_requests = True
     try:
-        import requests  # 延迟导入，避免服务启动时缺失依赖导致失败
+        import requests
     except Exception:
-        return error("server_error", message="requests_missing")
+        use_requests = False
     base = "http://127.0.0.1:8080/api/v1"
     ts = time.strftime("%Y%m%d%H%M%S", time.gmtime())
     results = {}
-    def _post(path, payload):
-        r = requests.post(base + path, json=payload)
-        try:
-            return r.status_code, r.json()
-        except Exception:
-            return r.status_code, {"raw": r.text}
-    def _get(path):
-        r = requests.get(base + path)
-        try:
-            return r.status_code, r.json()
-        except Exception:
-            return r.status_code, {"raw": r.text}
+    if use_requests:
+        def _post(path, payload):
+            r = requests.post(base + path, json=payload)
+            try:
+                return r.status_code, r.json()
+            except Exception:
+                return r.status_code, {"raw": r.text}
+        def _get(path):
+            r = requests.get(base + path)
+            try:
+                return r.status_code, r.json()
+            except Exception:
+                return r.status_code, {"raw": r.text}
+    else:
+        import urllib.request
+        def _post(path, payload):
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(base + path, data=data, headers={"Content-Type": "application/json; charset=utf-8"}, method="POST")
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    sc = resp.getcode()
+                    txt = resp.read().decode("utf-8", errors="replace")
+                    try:
+                        return sc, json.loads(txt)
+                    except Exception:
+                        return sc, {"raw": txt}
+            except Exception as e:
+                return 500, {"error": str(e)}
+        def _get(path):
+            req = urllib.request.Request(base + path, method="GET")
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    sc = resp.getcode()
+                    txt = resp.read().decode("utf-8", errors="replace")
+                    try:
+                        return sc, json.loads(txt)
+                    except Exception:
+                        return sc, {"raw": txt}
+            except Exception as e:
+                return 500, {"error": str(e)}
     # users
     sc, u = _post("/users", {"nickname": "PyReqUser-" + ts})
     results["users"] = {"status": sc, "resp": u}
