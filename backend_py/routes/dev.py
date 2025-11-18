@@ -58,3 +58,14 @@ def dev_charset():
         return ok(rows)
     except Exception as e:
         return error("server_error", message=str(e))
+
+@bp.route("/api/v1/dev/alliances/<int:aid>/fixdesc", methods=["POST"])
+def dev_fix_alliance_desc(aid: int):
+    """将指定联盟的描述直接设置为中文常量（用于验证数据库字符集生效）"""
+    try:
+        with SessionLocal() as db:
+            db.execute(text("UPDATE alliances SET description=:d WHERE id=:id"), {"d": "中文演示", "id": aid})
+            db.commit()
+        return ok({"id": aid, "fixed": True})
+    except Exception as e:
+        return error("server_error", message=str(e))
