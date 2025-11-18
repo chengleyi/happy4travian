@@ -179,6 +179,8 @@ jobs:
               else
                 $MAMBA_BIN run -n h4t pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10
               fi
+              # 确保 dev 端点可用 requests
+              $MAMBA_BIN run -n h4t pip install requests || true
             else
               if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
                 /opt/happy4travian/py311/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt || true
@@ -188,6 +190,10 @@ jobs:
                 /opt/happy4travian/py311/bin/pip install Flask==3.0.0 gunicorn==21.2.0 SQLAlchemy==1.4.52 pymysql==1.1.0 flask-cors==3.0.10 || true
               fi
               sudo ln -sf /opt/happy4travian/py311/bin/gunicorn /opt/happy4travian/mamba/envs/h4t/bin/gunicorn || true
+            fi
+            # 覆盖旧 venv 路径以防 systemd 使用旧环境
+            if [ -x /opt/happy4travian/venv/bin/pip ]; then
+              /opt/happy4travian/venv/bin/pip install requests || true
             fi
             sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
             SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
