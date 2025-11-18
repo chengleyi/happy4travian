@@ -258,6 +258,23 @@ jobs:
             echo "==> server-side POST body check (non-blocking)"
             curl -s -H 'Content-Type: application/json' -X POST -d '{"nickname":"srv-ci"}' http://127.0.0.1:8080/api/v1/users | tee /tmp/post_users.json || true
             cat /tmp/post_users.json || true
+
+      - name: Server-side E2E (python requests)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            if /opt/happy4travian/micromamba/bin/micromamba --version >/dev/null 2>&1; then
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t pip install requests || true
+              /opt/happy4travian/micromamba/bin/micromamba run -n h4t python /opt/happy4travian/backend_py/tools/e2e_requests.py || true
+            elif [ -x /opt/happy4travian/py311/bin/python ]; then
+              /opt/happy4travian/py311/bin/pip install requests || true
+              /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/e2e_requests.py || true
+            fi
       - name: Seed basic data on server
         # 通过脚本在服务器上灌入基础数据
         uses: appleboy/ssh-action@v1.0.0
