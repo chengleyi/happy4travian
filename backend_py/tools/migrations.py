@@ -74,14 +74,32 @@ def ensure_utf8mb4_charset():
                     changed[f'{t}.charset'] = 'utf8mb4'
                 except Exception:
                     # 尝试逐列修复常见文本列
-                    try:
-                        conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-                    except Exception:
-                        pass
-                    try:
-                        conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-                    except Exception:
-                        pass
+                    if t == 'alliances':
+                        # alliances 特殊处理：确保 name/tag/description 均为 utf8mb4
+                        try:
+                            conn.execute(text("ALTER TABLE alliances MODIFY COLUMN name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                            changed['alliances.name'] = 'utf8mb4'
+                        except Exception:
+                            pass
+                        try:
+                            conn.execute(text("ALTER TABLE alliances MODIFY COLUMN tag VARCHAR(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                            changed['alliances.tag'] = 'utf8mb4'
+                        except Exception:
+                            pass
+                        try:
+                            conn.execute(text("ALTER TABLE alliances MODIFY COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                            changed['alliances.description'] = 'utf8mb4'
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                        except Exception:
+                            pass
+                        try:
+                            conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                        except Exception:
+                            pass
     return changed or {'charset': 'ok'}
 
 if __name__ == '__main__':
