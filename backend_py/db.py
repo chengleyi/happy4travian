@@ -22,7 +22,7 @@ user = quote_plus(user_raw or "")
 password = quote_plus(password_raw or "")
 url = f"mysql+pymysql://{user}:{password}@{host}:{port}/{dbname}?charset=utf8mb4"
 # 创建引擎与会话（开启 pre_ping 以避免连接失效，并强制连接层使用 utf8mb4）
-engine = create_engine(url, pool_pre_ping=True, connect_args={"charset":"utf8mb4"})
+engine = create_engine(url, pool_pre_ping=True, connect_args={"charset":"utf8mb4", "init_command": "SET NAMES utf8mb4"})
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 # 声明基类，用于模型定义
 Base = declarative_base()
