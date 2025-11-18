@@ -250,10 +250,16 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
+            echo "==> restart service proactively before smoke"
+            sudo systemctl daemon-reload || true
+            sudo systemctl restart happy4travian.service || true
+            sudo systemctl status happy4travian.service --no-pager || true
+            echo "==> check port 8080"
+            for i in 1 2 3 4 5 6 7 8 9 10; do if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then echo "port ready"; break; fi; sleep 2; done
             attempt() { curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8080$1" || echo "000"; }
-            for i in 1 2 3 4 5 6 7 8 9 10; do h=$(attempt "/api/v1/health"); echo "local-health:$h"; [ "$h" = "200" ] && break; sleep 2; done; [ "$h" = "200" ]
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do h=$(attempt "/api/v1/health"); echo "local-health:$h"; [ "$h" = "200" ] && break; sleep 2; done; [ "$h" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1)
             for ep in "/api/v1/tribes" "/api/v1/servers" "/api/v1/troops/params"; do 
-              for i in 1 2 3 4 5 6 7 8 9 10; do c=$(attempt "$ep"); echo "local-$ep:$c"; [ "$c" = "200" ] && break; sleep 2; done; [ "$c" = "200" ] || exit 1;
+              for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do c=$(attempt "$ep"); echo "local-$ep:$c"; [ "$c" = "200" ] && break; sleep 2; done; [ "$c" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1);
             done
             echo "==> server-side POST body check (non-blocking)"
             curl -s -H 'Content-Type: application/json' -X POST -d '{"nickname":"srv-ci"}' http://127.0.0.1:8080/api/v1/users | tee /tmp/post_users.json || true
