@@ -4,7 +4,6 @@
 """
 from flask import Blueprint
 import time
-import requests
 from utils.resp import ok, error
 from tools.migrations import migrate_missing_columns
 from tools.seed_basic_data import ensure_tables, seed_tribes, seed_server, seed_users_accounts_villages, seed_alliance, seed_troop_types_from_json
@@ -64,6 +63,10 @@ def dev_charset():
 @bp.route("/api/v1/dev/e2e-run", methods=["POST"])
 def dev_e2e_run():
     """在服务器侧使用 requests 远端调用自身 API，执行 E2E 并返回汇总"""
+    try:
+        import requests  # 延迟导入，避免服务启动时缺失依赖导致失败
+    except Exception:
+        return error("server_error", message="requests_missing")
     base = "http://127.0.0.1:8080/api/v1"
     ts = time.strftime("%Y%m%d%H%M%S", time.gmtime())
     results = {}
