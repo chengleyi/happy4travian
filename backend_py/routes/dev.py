@@ -3,6 +3,8 @@
 提供数据灌入与数据库迁移的触发接口，用于在服务器上快速初始化环境。
 """
 from flask import Blueprint
+import time
+import requests
 from utils.resp import ok, error
 from tools.migrations import migrate_missing_columns
 from tools.seed_basic_data import ensure_tables, seed_tribes, seed_server, seed_users_accounts_villages, seed_alliance, seed_troop_types_from_json
@@ -58,6 +60,58 @@ def dev_charset():
         return ok(rows)
     except Exception as e:
         return error("server_error", message=str(e))
+
+@bp.route("/api/v1/dev/e2e-run", methods=["POST"])
+def dev_e2e_run():
+    """在服务器侧使用 requests 远端调用自身 API，执行 E2E 并返回汇总"""
+    base = "http://127.0.0.1:8080/api/v1"
+    ts = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+    results = {}
+    def _post(path, payload):
+        r = requests.post(base + path, json=payload)
+        try:
+            return r.status_code, r.json()
+        except Exception:
+            return r.status_code, {"raw": r.text}
+    def _get(path):
+        r = requests.get(base + path)
+        try:
+            return r.status_code, r.json()
+        except Exception:
+            return r.status_code, {"raw": r.text}
+    # users
+    sc, u = _post("/users", {"nickname": "PyReqUser-" + ts})
+    results["users"] = {"status": sc, "resp": u}
+    uid = u.get("data", {}).get("id")
+    # servers
+    sc, s = _post("/servers", {"code": "com-pyreq-" + ts, "region": "CN", "speed": "x1", "startDate": "2025-11-20"})
+    results["servers"] = {"status": sc, "resp": s}
+    sid = s.get("data", {}).get("id")
+    # tribes
+    sc, t = _post("/tribes", {"code": "PYROM-" + ts, "name": "罗马部落"})
+    results["tribes"] = {"status": sc, "resp": t}
+    tid = t.get("data", {}).get("id")
+    # accounts
+    sc, a = _post("/accounts", {"userId": uid, "serverId": sid, "tribeId": tid, "inGameName": "账号-" + ts})
+    results["accounts"] = {"status": sc, "resp": a}
+    aid = a.get("data", {}).get("id")
+    # villages
+    sc, v = _post("/villages", {"serverId": sid, "gameAccountId": aid, "name": "村庄-" + ts, "x": 110, "y": -50})
+    results["villages"] = {"status": sc, "resp": v}
+    # alliances
+    sc, al = _post("/alliances", {"serverId": sid, "name": "联盟-" + ts, "tag": "联", "description": "中文演示", "createdBy": uid})
+    results["alliances"] = {"status": sc, "resp": al}
+    alid = al.get("data", {}).get("id")
+    if alid:
+        scg, alget = _get("/alliances/" + str(alid))
+        results["alliances_get"] = {"status": scg, "resp": alget}
+    # troops params
+    sc, tp = _get("/troops/params?version=1.46&speed=3x")
+    results["troops_params"] = {"status": sc, "resp": tp}
+    # negative
+    sc, bad = _get("/alliances?serverId=abc")
+    results["alliances_bad"] = {"status": sc, "resp": bad}
+    return ok(results)
 
 @bp.route("/api/v1/dev/alliances/<int:aid>/fixdesc", methods=["POST"])
 def dev_fix_alliance_desc(aid: int):
