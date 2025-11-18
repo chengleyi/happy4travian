@@ -7,6 +7,8 @@ from utils.resp import ok, error
 from tools.migrations import migrate_missing_columns
 from tools.seed_basic_data import ensure_tables, seed_tribes, seed_server, seed_users_accounts_villages, seed_alliance, seed_troop_types_from_json
 from db import SessionLocal
+from db import engine
+from sqlalchemy import text
 
 bp = Blueprint("dev", __name__)
 
@@ -27,5 +29,32 @@ def dev_migrate():
     try:
         changes = migrate_missing_columns()
         return ok({"message":"migrate_done","changes":changes})
+    except Exception as e:
+        return error("server_error", message=str(e))
+
+@bp.route("/api/v1/dev/charset", methods=["GET"])
+def dev_charset():
+    """返回关键表/列的字符集与排序规则，便于诊断中文显示问题"""
+    try:
+        q = text(
+            """
+            SELECT TABLE_NAME, COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (
+              'alliances','alliance_members','users','servers','tribes','game_accounts','villages','troop_types','troop_counts'
+            ) AND COLUMN_NAME IN ('name','tag','description')
+            ORDER BY TABLE_NAME, COLUMN_NAME
+            """
+        )
+        rows = []
+        with engine.begin() as conn:
+            for r in conn.execute(q).mappings():
+                rows.append({
+                    "table": r["TABLE_NAME"],
+                    "column": r["COLUMN_NAME"],
+                    "charset": r["CHARACTER_SET_NAME"],
+                    "collation": r["COLLATION_NAME"],
+                })
+        return ok(rows)
     except Exception as e:
         return error("server_error", message=str(e))
