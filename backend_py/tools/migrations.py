@@ -43,7 +43,46 @@ def migrate_missing_columns():
     result = {}
     result.update(ensure_alliances_columns())
     result.update(ensure_alliance_members_columns())
+    # 统一字符集为 utf8mb4，避免中文被写入为问号
+    try:
+        result.update(ensure_utf8mb4_charset())
+    except Exception as e:
+        result['charset_migration_error'] = str(e)
     return result
+
+def ensure_utf8mb4_charset():
+    """将数据库与所有已存在的表转换为 utf8mb4/utf8mb4_unicode_ci"""
+    insp = inspect(engine)
+    changed = {}
+    with engine.begin() as conn:
+        # 转数据库字符集（若权限允许）
+        conn.execute(text("SELECT database()"))
+        try:
+            conn.execute(text("ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+            changed['database.charset'] = 'utf8mb4'
+        except Exception:
+            pass
+        # 需要转换的表列表
+        tables = [
+            'alliances','alliance_members','users','servers','tribes',
+            'game_accounts','villages','troop_types','troop_counts'
+        ]
+        for t in tables:
+            if insp.has_table(t):
+                try:
+                    conn.execute(text(f"ALTER TABLE {t} CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    changed[f'{t}.charset'] = 'utf8mb4'
+                except Exception:
+                    # 尝试逐列修复常见文本列
+                    try:
+                        conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    except Exception:
+                        pass
+                    try:
+                        conn.execute(text(f"ALTER TABLE {t} MODIFY COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    except Exception:
+                        pass
+    return changed or {'charset': 'ok'}
 
 if __name__ == '__main__':
     import json
