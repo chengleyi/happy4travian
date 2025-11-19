@@ -143,6 +143,15 @@ jobs:
             sudo systemctl daemon-reload || true
             echo "==> java processes after purge"
             ps aux | grep java || true
+            echo "==> uninstall Java JDK/JRE packages"
+            RPM_JAVA=$(rpm -qa | grep -Ei '(openjdk|jdk|jre|java)' || true)
+            if [ -n "$RPM_JAVA" ]; then
+              echo "$RPM_JAVA" | xargs -r sudo yum remove -y || true
+              echo "$RPM_JAVA" | xargs -r sudo dnf remove -y || true
+            fi
+            if command -v java >/dev/null 2>&1; then
+              echo "java still present at $(command -v java); attempting manual removal via packages"
+            fi
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo mkdir -p /opt/happy4travian/backend_py
             if [ -f /opt/happy4travian/backend_py.tar.gz ]; then
@@ -304,14 +313,14 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service
-            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8081/tcp && sudo firewall-cmd --reload; fi
+            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
             echo "==> reload nginx"
             sudo nginx -t || (sudo journalctl -u nginx -n 100 --no-pager || true)
             sudo systemctl reload nginx || sudo systemctl restart nginx || true
             echo "==> listen ports"
-            (ss -ltnp || netstat -ltnp) | grep -E '(:8080|:8081)' || true
+            (ss -ltnp || netstat -ltnp) | grep -E '(:8080)' || true
             for i in 1 2 3 4 5; do
-              if (ss -ltnp || netstat -ltnp) | grep 8081 >/dev/null 2>&1; then break; fi
+              if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then break; fi
               sleep 2
             done
             echo "==> systemctl status"
@@ -320,8 +329,8 @@ jobs:
             sudo journalctl -u happy4travian.service -n 200 --no-pager || true
             echo "==> ps gunicorn"
             ps aux | grep gunicorn || true
-            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8081/api/v1/health || true
-            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8081/api/v1/db/ping || true
+            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health || true
+            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping || true
             echo "==> troops.py routes"
             grep -n "troops/params" /opt/happy4travian/backend_py/routes/troops.py || true
             grep -n "troops_params" /opt/happy4travian/backend_py/routes/system.py || true
@@ -351,7 +360,7 @@ jobs:
               /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
             fi
             ls -lah /opt/happy4travian/backend_py/exports || true
-      - name: Server-side smoke test (authoritative, python backend on 8081)
+      - name: Server-side smoke test (authoritative, python backend on 8080)
         # 在服务器本地进行 API 冒烟测试
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -366,8 +375,8 @@ jobs:
             sudo systemctl restart happy4travian.service || true
             sudo systemctl status happy4travian.service --no-pager || true
             echo "==> check port 8080"
-            for i in 1 2 3 4 5 6 7 8 9 10; do if (ss -ltnp || netstat -ltnp) | grep 8081 >/dev/null 2>&1; then echo "port ready"; break; fi; sleep 2; done
-            attempt() { curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8081$1" || echo "000"; }
+            for i in 1 2 3 4 5 6 7 8 9 10; do if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then echo "port ready"; break; fi; sleep 2; done
+            attempt() { curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8080$1" || echo "000"; }
             for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do h=$(attempt "/api/v1/health"); echo "local-health:$h"; [ "$h" = "200" ] && break; sleep 2; done; [ "$h" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1)
             for ep in "/api/v1/tribes" "/api/v1/servers" "/api/v1/troops/params"; do 
               for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do c=$(attempt "$ep"); echo "local-$ep:$c"; [ "$c" = "200" ] && break; sleep 2; done; [ "$c" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1);
