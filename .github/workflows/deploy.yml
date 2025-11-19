@@ -40,6 +40,15 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: ops/systemd/happy4travian.service
           target: /etc/systemd/system/
+      - name: Upload nginx conf
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: ops/nginx/happy4travian.conf
+          target: /etc/nginx/conf.d/
       - name: Upload DB schema
         # 上传数据库初始化 SQL 到指定目录
         uses: appleboy/scp-action@v0.1.7
@@ -283,9 +292,14 @@ jobs:
             sudo systemctl daemon-reload
             sudo systemctl enable happy4travian.service
             sudo systemctl restart happy4travian.service
-            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
+            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-port=8081/tcp && sudo firewall-cmd --reload; fi
+            echo "==> reload nginx"
+            sudo nginx -t || (sudo journalctl -u nginx -n 100 --no-pager || true)
+            sudo systemctl reload nginx || sudo systemctl restart nginx || true
+            echo "==> listen ports"
+            (ss -ltnp || netstat -ltnp) | grep -E '(:8080|:8081)' || true
             for i in 1 2 3 4 5; do
-              if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then break; fi
+              if (ss -ltnp || netstat -ltnp) | grep 8081 >/dev/null 2>&1; then break; fi
               sleep 2
             done
             echo "==> systemctl status"
@@ -294,8 +308,8 @@ jobs:
             sudo journalctl -u happy4travian.service -n 200 --no-pager || true
             echo "==> ps gunicorn"
             ps aux | grep gunicorn || true
-            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8080/api/v1/health || true
-            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8080/api/v1/db/ping || true
+            curl -s -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:8081/api/v1/health || true
+            curl -s -o /dev/null -w "db:%{http_code}\n" http://127.0.0.1:8081/api/v1/db/ping || true
             echo "==> troops.py routes"
             grep -n "troops/params" /opt/happy4travian/backend_py/routes/troops.py || true
             grep -n "troops_params" /opt/happy4travian/backend_py/routes/system.py || true
@@ -325,7 +339,7 @@ jobs:
               /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/export_troops_excel.py || true
             fi
             ls -lah /opt/happy4travian/backend_py/exports || true
-      - name: Server-side smoke test (authoritative)
+      - name: Server-side smoke test (authoritative, python backend on 8081)
         # 在服务器本地进行 API 冒烟测试
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -340,8 +354,8 @@ jobs:
             sudo systemctl restart happy4travian.service || true
             sudo systemctl status happy4travian.service --no-pager || true
             echo "==> check port 8080"
-            for i in 1 2 3 4 5 6 7 8 9 10; do if (ss -ltnp || netstat -ltnp) | grep 8080 >/dev/null 2>&1; then echo "port ready"; break; fi; sleep 2; done
-            attempt() { curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8080$1" || echo "000"; }
+            for i in 1 2 3 4 5 6 7 8 9 10; do if (ss -ltnp || netstat -ltnp) | grep 8081 >/dev/null 2>&1; then echo "port ready"; break; fi; sleep 2; done
+            attempt() { curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8081$1" || echo "000"; }
             for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do h=$(attempt "/api/v1/health"); echo "local-health:$h"; [ "$h" = "200" ] && break; sleep 2; done; [ "$h" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1)
             for ep in "/api/v1/tribes" "/api/v1/servers" "/api/v1/troops/params"; do 
               for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do c=$(attempt "$ep"); echo "local-$ep:$c"; [ "$c" = "200" ] && break; sleep 2; done; [ "$c" = "200" ] || (sudo journalctl -u happy4travian.service -n 200 --no-pager || true; exit 1);
@@ -405,12 +419,12 @@ jobs:
               /opt/happy4travian/py311/bin/python /opt/happy4travian/backend_py/tools/migrations.py || true
             fi
             curl -s -o /dev/null -w "alliances:%{http_code}\n" http://127.0.0.1:8080/api/v1/alliances || true
-      - name: External health probe (JSON)
+      - name: External health probe (JSON via nginx)
         # 从 Runner 侧对外部地址进行健康探测
         run: |
           echo "==> probe from runner"
-          curl -s -H 'Accept: application/json' http://47.99.88.168:8080/api/v1/health | tee /tmp/health.json ; (grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json) || (test "$(cat /tmp/health.json)" = "ok")
-          curl -s -H 'Accept: application/json' http://47.99.88.168:8080/api/v1/db/ping | tee /tmp/dbping.json ; (grep -q '"success": *true' /tmp/dbping.json && grep -q '"message": *"ok"' /tmp/dbping.json) || (test "$(cat /tmp/dbping.json)" = "ok")
+          curl -s -H 'Accept: application/json' http://47.99.88.168/api/v1/health | tee /tmp/health.json ; (grep -q '"success": *true' /tmp/health.json && grep -q '"message": *"ok"' /tmp/health.json) || (test "$(cat /tmp/health.json)" = "ok")
+          curl -s -H 'Accept: application/json' http://47.99.88.168/api/v1/db/ping | tee /tmp/dbping.json ; (grep -q '"success": *true' /tmp/dbping.json && grep -q '"message": *"ok"' /tmp/dbping.json) || (test "$(cat /tmp/dbping.json)" = "ok")
           echo "==> external endpoints"
           curl -s http://47.99.88.168:8080/api/v1/tribes | tee /tmp/tribes.json && grep -q '"success": *true' /tmp/tribes.json || exit 1
           curl -s http://47.99.88.168:8080/api/v1/accounts | tee /tmp/accounts.json && grep -q '"success": *true' /tmp/accounts.json || exit 1
@@ -420,8 +434,8 @@ jobs:
       - name: Smoke test (external, non-blocking)
         # 非阻塞的对外接口状态检查
         run: |
-          attempt_health() { curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168:8080/api/v1/health || echo "000"; }
-          attempt_ep() { curl -s -o /dev/null -w "%{http_code}" "http://47.99.88.168:8080/api/v1/$1" || echo "000"; }
+          attempt_health() { curl -s -o /dev/null -w "%{http_code}" http://47.99.88.168/api/v1/health || echo "000"; }
+          attempt_ep() { curl -s -o /dev/null -w "%{http_code}" "http://47.99.88.168/api/v1/$1" || echo "000"; }
           for i in 1 2 3 4 5 6 7 8 9 10; do code=$(attempt_health); echo "health:$code"; [ "$code" = "200" ] && break; sleep 3; done
           for ep in servers tribes accounts troops/params; do 
             for i in 1 2 3 4 5 6 7 8 9 10; do c=$(attempt_ep "$ep"); echo "$ep:$c"; [ "$c" = "200" ] && break; sleep 3; done
