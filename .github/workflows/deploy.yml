@@ -131,6 +131,18 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
+            echo "==> purge legacy Java backend"
+            sudo pkill -f 'happy4travian-backend.jar' || true
+            for svc in $(grep -rl 'happy4travian-backend.jar' /etc/systemd/system || true); do
+              name=$(basename "$svc")
+              sudo systemctl stop "$name" || true
+              sudo systemctl disable "$name" || true
+              sudo rm -f "$svc" || true
+            done
+            sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
+            sudo systemctl daemon-reload || true
+            echo "==> java processes after purge"
+            ps aux | grep java || true
             sudo mkdir -p /opt/happy4travian /etc/happy4travian
             sudo mkdir -p /opt/happy4travian/backend_py
             if [ -f /opt/happy4travian/backend_py.tar.gz ]; then
