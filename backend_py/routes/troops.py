@@ -243,31 +243,41 @@ def parse_image_troops():
                     row_top = min([t["top"] for t in tokens])
                     band_h = int(text_h * 2)
                     header_y = max(0, row_top - band_h)
-                    # 先尝试整条表头带的匹配（与 resource/*.png 比较）
+                    # 尝试多偏移整条表头带的匹配（与 resource/*.png 比较）
                     min_x = min([t["left"] for t in tokens])
                     max_x = max([t["left"] + t["width"] for t in tokens])
                     margin = int(text_h * 3)
-                    x0_band = max(0, min_x - margin)
-                    y0_band = header_y
-                    x1_band = min(img.width, max_x + margin)
-                    y1_band = min(img.height, header_y + max(int(text_h * 2.4), 28))
-                    header_band = None
-                    if x1_band > x0_band and y1_band > y0_band:
-                        header_band = img.crop((x0_band, y0_band, x1_band, y1_band))
-                        tid_band, conf_band = _guess_tribe_by_sprite_band(header_band)
-                    if tid_band is not None:
-                        tribe_guess_id, tribe_guess_conf = tid_band, conf_band
-                        # 低置信度时先不立即采用，交由列图标再确认
-                        adopt_band = True if (tribe_guess_conf is not None and tribe_guess_conf <= 15) else False
+                    best_tid_band = None
+                    best_score_band = None
+                    best_offset = None
+                    for m in (1, 2, 3, 4, 5):
+                        y0_band = max(0, header_y - int(text_h * (m-1)))
+                        x0_band = max(0, min_x - margin)
+                        x1_band = min(img.width, max_x + margin)
+                        y1_band = min(img.height, y0_band + max(int(text_h * 2.6), 32))
+                        if x1_band <= x0_band or y1_band <= y0_band:
+                            continue
+                        try:
+                            band_img = img.crop((x0_band, y0_band, x1_band, y1_band))
+                            tid_band, conf_band = _guess_tribe_by_sprite_band(band_img)
+                            if tid_band is not None:
+                                if best_score_band is None or (conf_band is not None and conf_band < best_score_band):
+                                    best_tid_band = tid_band
+                                    best_score_band = conf_band
+                                    best_offset = m
+                        except Exception:
+                            continue
+                    if best_tid_band is not None:
+                        tribe_guess_id, tribe_guess_conf = int(best_tid_band), best_score_band
+                        adopt_band = True if (tribe_guess_conf is not None and tribe_guess_conf <= 24) else False
                         if adopt_band:
                             tribeId = int(tribe_guess_id)
                             if not type_ids:
-                                # 获取该部落兵种顺序
                                 with SessionLocal() as db2:
                                     types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
                                     type_ids = [int(t.id) for t in types2]
                             if debug_flag:
-                                logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
+                                logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "offset": best_offset, "ts": round(time.time()-t0,3)})
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
                     icon_size = max(16, int(text_h * 1.6))
@@ -445,8 +455,12 @@ def parse_image_troops_test():
                 steps.textContent='上传进度: '+pct+'%';
               }
             };
+            let ocrTimer=null; let cur=40;
+            function tick(){ cur=Math.min(85, cur+2); bar.style.width=cur+'%'; steps.textContent='OCR识别中… '+cur+'%'; }
+            ocrTimer=setInterval(tick, 250);
             xhr.onreadystatechange=()=>{
               if(xhr.readyState===4){
+                if(ocrTimer){ clearInterval(ocrTimer); ocrTimer=null; }
                 btn.disabled=false;
                 try{
                   const data=JSON.parse(xhr.responseText||'{}');
@@ -454,7 +468,7 @@ def parse_image_troops_test():
                   const L=(data&&data.logs)||[];
                   const seqKeys=['read_file','prepare_image','tesseract_data','tribe_header_band','tribe_icons','rows_extracted'];
                   const seq=L.filter(x=>seqKeys.includes(x.step));
-                  const perc=[50,65,80,90,95,100];
+                  const perc=[90,92,94,96,98,100];
                   steps.innerHTML='';
                   let i=0;
                   function advance(){
@@ -564,7 +578,7 @@ def _guess_tribe_by_icons(patches):
                     im = Image.open(p).convert("L")
                     if imagehash is None:
                         continue
-                    arr.append(imagehash.phash(im))
+                    arr.append((imagehash.phash(im), imagehash.average_hash(im)))
                 except Exception:
                     continue
         if arr:
@@ -580,8 +594,9 @@ def _guess_tribe_by_icons(patches):
             try:
                 if imagehash is None:
                     continue
-                h = imagehash.phash(patch)
-                dist = min([h - th for th in arr]) if arr else 64
+                h_ph = imagehash.phash(patch)
+                h_ah = imagehash.average_hash(patch)
+                dist = min([(h_ph - th_ph) + (h_ah - th_ah) for (th_ph, th_ah) in arr]) if arr else 64
             except Exception:
                 dist = 64
             dsum += dist
