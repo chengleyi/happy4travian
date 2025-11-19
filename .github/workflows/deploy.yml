@@ -121,6 +121,72 @@ jobs:
             sudo yum install -y mariadb || true
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` DEFAULT CHARACTER SET utf8mb4;"
             mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE \`$DB_NAME\`; SHOW TABLES; SHOW TABLES LIKE 'game_accounts';"
+      - name: Bootstrap clean server (py311 venv)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            sudo systemctl stop happy4travian.service || true
+            sudo pkill -f 'happy4travian-backend.jar' || true
+            for svc in $(grep -rl 'happy4travian-backend.jar' /etc/systemd/system || true); do
+              name=$(basename "$svc"); sudo systemctl disable "$name" || true; sudo rm -f "$svc" || true; done
+            sudo rm -f /opt/happy4travian/happy4travian-backend.jar || true
+            sudo systemctl daemon-reload || true
+            if command -v yum >/dev/null 2>&1; then
+              sudo yum install -y epel-release || true
+              sudo yum install -y nginx firewalld || true
+              sudo yum install -y tesseract tesseract-langpack-chi_sim || true
+              sudo yum install -y python311 python311-pip || sudo yum install -y python3 python3-pip
+            elif command -v dnf >/dev/null 2>&1; then
+              sudo dnf install -y nginx firewalld || true
+              sudo dnf install -y tesseract tesseract-langpack-chi_sim || true
+              sudo dnf install -y python3.11 python3-pip || sudo dnf install -y python3 python3-pip
+            else
+              sudo apt-get update -y || true
+              sudo apt-get install -y nginx || true
+              sudo apt-get install -y tesseract-ocr tesseract-ocr-chi-sim || true
+              sudo apt-get install -y python3.11 python3-pip || sudo apt-get install -y python3 python3-pip
+            fi
+            PY_BIN=$(command -v python3.11 || command -v python3)
+            echo "PY_BIN=$PY_BIN"
+            sudo rm -rf /opt/happy4travian/py311venv || true
+            "$PY_BIN" -m venv /opt/happy4travian/py311venv
+            /opt/happy4travian/py311venv/bin/pip install --upgrade pip
+            /opt/happy4travian/py311venv/bin/pip install -r /opt/happy4travian/backend_py/requirements.txt || true
+            /opt/happy4travian/py311venv/bin/pip install gunicorn Pillow pytesseract imagehash numpy
+            /opt/happy4travian/py311venv/bin/python -c "import flask, sqlalchemy, pymysql; import PIL, pytesseract, imagehash, numpy; print('venv deps ok')"
+            sudo bash -lc 'cat > /etc/systemd/system/happy4travian.service <<EOF
+            [Unit]
+            Description=Happy4Travian Backend
+            After=network.target
+            [Service]
+            WorkingDirectory=/opt/happy4travian
+            EnvironmentFile=/etc/happy4travian/happy4travian.env
+            ExecStart=/opt/happy4travian/py311venv/bin/python -m gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
+            Restart=always
+            RestartSec=5
+            User=root
+            LimitNOFILE=65535
+            [Install]
+            WantedBy=multi-user.target
+            EOF'
+            sudo bash -lc 'cat > /etc/happy4travian/happy4travian.env <<EOF
+            SPRING_DATASOURCE_URL=${{ secrets.DB_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+            TROOPS_PARAMS_PATH=/opt/happy4travian/backend_py/data/troops_t4.6_1x.json
+            EOF'
+            sudo systemctl daemon-reload
+            sudo systemctl enable happy4travian.service
+            sudo systemctl restart happy4travian.service
+            if systemctl is-active firewalld >/dev/null 2>&1; then sudo firewall-cmd --permanent --add-service=http && sudo firewall-cmd --permanent --add-service=https && sudo firewall-cmd --permanent --add-port=8080/tcp && sudo firewall-cmd --reload; fi
+            sudo nginx -t || true
+            sudo systemctl reload nginx || sudo systemctl restart nginx || true
+            (ss -ltnp || netstat -ltnp) | grep 8080 || true
       - name: Prepare and restart service (Flask)
         # 准备 Python 环境并重启服务
         uses: appleboy/ssh-action@v1.0.0
