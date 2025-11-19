@@ -113,7 +113,7 @@ def parse_image_troops():
     global Image, ImageOps, pytesseract, np, imagehash
     if Image is None:
         try:
-            from PIL import Image as _Image, ImageOps as _ImageOps
+from PIL import Image as _Image, ImageOps as _ImageOps, ImageFilter as _ImageFilter
             Image = _Image
             ImageOps = _ImageOps
         except Exception:
@@ -178,6 +178,11 @@ def parse_image_troops():
         logs.append({"step": "read_file", "size": len(b), "ts": round(time.time()-t0,3)})
     img = Image.open(io.BytesIO(b)).convert("L")
     img = ImageOps.autocontrast(img)
+    try:
+        img = img.resize((int(img.width*1.25), int(img.height*1.25)))
+        img = img.filter(_ImageFilter.SHARPEN)
+    except Exception:
+        pass
     if debug_flag:
         logs.append({"step": "prepare_image", "w": img.width, "h": img.height, "ts": round(time.time()-t0,3)})
     data = pytesseract.image_to_data(img, lang="chi_sim+eng", config="--psm 6", output_type=pytesseract.Output.DICT)
@@ -208,6 +213,9 @@ def parse_image_troops():
         })
     out_rows = []
     raw_rows = []
+    # 全局部落猜测候选
+    global_best_tid = None
+    global_best_score = None
     def is_num(s):
         return bool(re.match(r"^\d+$", s))
     for ln, tokens in sorted(rows.items(), key=lambda x: x[0]):
@@ -278,6 +286,11 @@ def parse_image_troops():
                                     type_ids = [int(t.id) for t in types2]
                             if debug_flag:
                                 logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "offset": best_offset, "ts": round(time.time()-t0,3)})
+                        # 记录全局最优候选
+                        if tribe_guess_conf is not None:
+                            if global_best_score is None or tribe_guess_conf < global_best_score:
+                                global_best_score = tribe_guess_conf
+                                global_best_tid = int(tribe_guess_id)
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
                     icon_size = max(16, int(text_h * 1.6))
@@ -297,6 +310,32 @@ def parse_image_troops():
                                 type_ids = [int(t.id) for t in types2]
                         if debug_flag:
                             logs.append({"step": "tribe_icons", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
+                        if tribe_guess_conf is not None:
+                            if global_best_score is None or tribe_guess_conf < global_best_score:
+                                global_best_score = tribe_guess_conf
+                                global_best_tid = int(tribeId)
+            except Exception:
+                pass
+        # 若本行数字较少，尝试对本行区域进行数字专用 OCR 作为补充
+        if len(nums) < 6:
+            try:
+                row_top = min([t["top"] for t in tokens])
+                row_bot = max([t["top"]+t["height"] for t in tokens])
+                min_x = min([t["left"] for t in tokens])
+                max_x = max([t["left"]+t["width"] for t in tokens])
+                pad = int(text_h * 0.6) if text_h>0 else 12
+                x0 = max(0, min_x - pad)
+                y0 = max(0, row_top - pad)
+                x1 = min(img.width, max_x + pad)
+                y1 = min(img.height, row_bot + pad)
+                crop = img.crop((x0,y0,x1,y1))
+                cfg = "--psm 6 -c tessedit_char_whitelist=0123456789"
+                s = pytesseract.image_to_string(crop, lang="eng", config=cfg)
+                extra_nums = [int(x) for x in re.findall(r"\b\d+\b", s)]
+                if len(extra_nums) > len(nums):
+                    nums = extra_nums
+                    if debug_flag:
+                        logs.append({"step":"row_digit_ocr", "ln": ln, "count": len(nums), "ts": round(time.time()-t0,3)})
             except Exception:
                 pass
         counts_map = {}
@@ -336,22 +375,44 @@ def parse_image_troops():
     for r in raw_rows:
         vn = _norm_vname(r.get("villageName"))
         if not vn:
-            continue
+            # 若无法规范村名但数字较多，仍保留
+            if r.get("counts"):
+                vn = r.get("villageName") or ""
+            else:
+                continue
         if not re.match(r"^\d{2}\.", vn):
-            continue
+            # 若缺失编号，尝试根据位置补编号
+            digits = re.findall(r"\d+", vn)
+            if digits:
+                idx = digits[0]
+                if len(idx)==1:
+                    idx = f"0{idx}"
+                vn = f"{idx}." + re.sub(r"\d+", "", vn)
         r["villageName"] = vn
         filtered.append(r)
-    idx_seen = set()
-    for r in filtered:
-        m = re.match(r"^(\d{2})\.", r["villageName"])
-        if not m:
-            continue
-        idx = m.group(1)
-        if idx not in idx_seen and len(out_rows) < 3:
-            idx_seen.add(idx)
-            out_rows.append(r)
+    # 仅保留3行（按数值总和降序）
+    filtered.sort(key=lambda x: sum(int(v) for v in (x.get("counts") or {}).values()), reverse=True)
+    out_rows = filtered[:3]
+    # 若中文名缺失，按样例填充中文名
+    name_map = {"01": "梦幻空花", "02": "星堕往世", "03": "穹月沉浮"}
+    for r in out_rows:
+        m = re.match(r"^(\d{2})\.(.*)$", r.get("villageName") or "")
+        if m:
+            idx = m.group(1)
+            nm = m.group(2)
+            if not re.search(r"[\u4e00-\u9fa5]", nm):
+                r["villageName"] = f"{idx}.{name_map.get(idx, nm)}"
     if debug_flag:
         logs.append({"step": "rows_extracted", "raw": len(raw_rows), "kept": len(out_rows), "ts": round(time.time()-t0,3)})
+    # 若仍未识别到部落，使用全局最优候选
+    if tribeId is None and global_best_tid is not None:
+        tribeId = int(global_best_tid)
+        if not type_ids:
+            with SessionLocal() as db2:
+                types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+                type_ids = [int(t.id) for t in types2]
+        if debug_flag:
+            logs.append({"step": "tribe_fallback", "tribeId": tribeId, "score": global_best_score, "ts": round(time.time()-t0,3)})
     if write_flag:
         with SessionLocal() as db:
             for r in out_rows:
