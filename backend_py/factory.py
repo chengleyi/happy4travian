@@ -32,7 +32,14 @@ def create_app():
     """创建并返回 Flask 应用实例"""
     app = Flask(__name__)
     # 配置跨域：允许正式域名来源访问 API
-    CORS(app, origins=["https://happy4travian.com", "https://www.happy4travian.com"], methods=["GET","POST","PUT","DELETE","OPTIONS"], allow_headers=["*"])
+    CORS(app, origins=[
+        "https://happy4travian.com",
+        "https://www.happy4travian.com",
+        "http://happy4travian.com",
+        "http://www.happy4travian.com",
+        "http://47.243.146.179",
+        "https://47.243.146.179"
+    ], methods=["GET","POST","PUT","DELETE","OPTIONS"], allow_headers=["*"])
     # 简单文件日志（位于 /opt/happy4travian/app.log 或当前目录）
     logging.basicConfig(filename="app.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
