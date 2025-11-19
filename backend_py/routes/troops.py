@@ -18,10 +18,11 @@ import os
 import json
 import urllib.request
 import io
-from PIL import Image, ImageOps
-import pytesseract
-import numpy as np
-import imagehash
+Image = None
+ImageOps = None
+pytesseract = None
+np = None
+imagehash = None
 
 bp = Blueprint("troops", __name__)
 
@@ -108,6 +109,32 @@ def _parse_travian_html_to_counts(html: str, tribe_types: list):
 
 @bp.post("/api/v1/troops/parse-image")
 def parse_image_troops():
+    global Image, ImageOps, pytesseract, np, imagehash
+    if Image is None:
+        try:
+            from PIL import Image as _Image, ImageOps as _ImageOps
+            Image = _Image
+            ImageOps = _ImageOps
+        except Exception:
+            return error("server_error", message="pil_missing", status=500)
+    if pytesseract is None:
+        try:
+            import pytesseract as _p
+            pytesseract = _p
+        except Exception:
+            return error("server_error", message="pytesseract_missing", status=500)
+    if imagehash is None:
+        try:
+            import imagehash as _ih
+            imagehash = _ih
+        except Exception:
+            imagehash = None
+    if np is None:
+        try:
+            import numpy as _np
+            np = _np
+        except Exception:
+            np = None
     file = request.files.get("file")
     if not file:
         return error("bad_request", message="file_missing", status=400)
@@ -274,6 +301,8 @@ def _guess_tribe_by_sprite_band(band_img):
     try:
         W, H = 256, 64
         band = band_img.resize((W, H))
+        if imagehash is None:
+            return None, None
         band_h = imagehash.phash(band)
     except Exception:
         return None, None
@@ -302,6 +331,8 @@ def _guess_tribe_by_sprite_band(band_img):
                 if os.path.exists(p):
                     try:
                         im = Image.open(p).convert("L").resize((W, H))
+                        if imagehash is None:
+                            continue
                         h = imagehash.phash(im)
                         d = band_h - h
                         best = d if (best is None or d < best) else best
@@ -334,6 +365,8 @@ def _guess_tribe_by_icons(patches):
                 p = os.path.join(d, fn)
                 try:
                     im = Image.open(p).convert("L")
+                    if imagehash is None:
+                        continue
                     arr.append(imagehash.phash(im))
                 except Exception:
                     continue
@@ -348,6 +381,8 @@ def _guess_tribe_by_icons(patches):
         cnt = 0
         for patch in patches:
             try:
+                if imagehash is None:
+                    continue
                 h = imagehash.phash(patch)
                 dist = min([h - th for th in arr]) if arr else 64
             except Exception:
