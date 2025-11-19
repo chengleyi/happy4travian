@@ -293,16 +293,17 @@ def parse_image_troops():
                                 global_best_tid = int(tribe_guess_id)
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
-                    icon_size = max(16, int(text_h * 1.6))
+                    icon_size = max(20, int(text_h * 1.8))
                     for cx in num_centers:
-                        x0 = max(0, cx - icon_size // 2)
-                        y0 = header_y
-                        x1 = min(img.width, x0 + icon_size)
-                        y1 = min(img.height, y0 + icon_size)
-                        if x1 > x0 and y1 > y0:
-                            patches.append(img.crop((x0, y0, x1, y1)))
+                        for oy in (0, int(text_h*0.4), int(text_h*0.8)):
+                            x0 = max(0, cx - icon_size // 2)
+                            y0 = max(0, header_y + oy)
+                            x1 = min(img.width, x0 + icon_size)
+                            y1 = min(img.height, y0 + icon_size)
+                            if x1 > x0 and y1 > y0:
+                                patches.append(img.crop((x0, y0, x1, y1)))
                     # 先尝试单图命中（匹配到任意一个模板即判定部落，排除冲车）
-                    tid_single, conf_single = _guess_tribe_by_single_icon(patches, threshold=12)
+                    tid_single, conf_single = _guess_tribe_by_single_icon(patches, threshold=16)
                     if tid_single is not None:
                         tribeId = int(tid_single)
                         if not type_ids:
@@ -328,7 +329,7 @@ def parse_image_troops():
             except Exception:
                 pass
         # 若本行数字较少，尝试对本行区域进行数字专用 OCR 作为补充
-        if len(nums) < 6:
+        if len(nums) < 8:
             try:
                 row_top = min([t["top"] for t in tokens])
                 row_bot = max([t["top"]+t["height"] for t in tokens])
@@ -387,19 +388,22 @@ def parse_image_troops():
     for r in raw_rows:
         vn = _norm_vname(r.get("villageName"))
         if not vn:
-            # 若无法规范村名但数字较多，仍保留
-            if r.get("counts"):
-                vn = r.get("villageName") or ""
-            else:
-                continue
+            continue
         if not re.match(r"^\d{2}\.", vn):
-            # 若缺失编号，尝试根据位置补编号
             digits = re.findall(r"\d+", vn)
-            if digits:
-                idx = digits[0]
-                if len(idx)==1:
-                    idx = f"0{idx}"
-                vn = f"{idx}." + re.sub(r"\d+", "", vn)
+            if not digits:
+                continue
+            idx = digits[0]
+            if len(idx)>2:
+                idx = idx[-2:]
+            if len(idx)==1:
+                idx = f"0{idx}"
+            name_part = re.sub(r"\d+", "", vn)
+            if not re.search(r"[\u4e00-\u9fa5]", name_part):
+                continue
+            vn = f"{idx}.{name_part}"
+        if not re.match(r"^\d{2}\.[\u4e00-\u9fa5]+", vn):
+            continue
         r["villageName"] = vn
         filtered.append(r)
     # 仅保留3行（按数值总和降序）
