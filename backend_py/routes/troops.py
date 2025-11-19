@@ -579,12 +579,12 @@ def _guess_tribe_by_sprite_band(band_img):
         return None, None
     # 资源目录候选
     candidates = {
-        1: ["roman_small.png", "roman.png"],
-        2: ["teuton_small.png", "teutons.png"],
-        3: ["gaul_small.png", "gauls.png"],
-        6: ["egyptian_small.png", "egyptians.png"],
-        7: ["hun_small.png", "huns.png"],
-        8: ["spartan_small.png", "spartan.png"]
+        1: ["roman_small.png", "roman_medium.png", "roman.png"],
+        2: ["teuton_small.png", "teuton_medium.png", "teutons.png"],
+        3: ["gaul_small.png", "gaul_medium.png", "gauls.png"],
+        6: ["egyptian_small.png", "egyptian_medium.png", "egyptians.png"],
+        7: ["hun_small.png", "hun_medium.png", "huns.png"],
+        8: ["spartan_small.png", "spartan_medium.png", "spartan.png"]
     }
     base_dirs = []
     # repo 根的 resource
