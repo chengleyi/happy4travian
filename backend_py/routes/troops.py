@@ -379,6 +379,10 @@ def parse_image_troops_test():
     """
     return Response(html, mimetype="text/html; charset=utf-8")
 
+@bp.get("/api/v1/ocr/test")
+def parse_image_troops_test_alias():
+    return parse_image_troops_test()
+
 def _guess_tribe_by_sprite_band(band_img):
     # 归一尺寸
     try:
