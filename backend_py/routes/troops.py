@@ -113,7 +113,7 @@ def parse_image_troops():
     global Image, ImageOps, pytesseract, np, imagehash
     if Image is None:
         try:
-from PIL import Image as _Image, ImageOps as _ImageOps, ImageFilter as _ImageFilter
+            from PIL import Image as _Image, ImageOps as _ImageOps, ImageFilter as _ImageFilter
             Image = _Image
             ImageOps = _ImageOps
         except Exception:
