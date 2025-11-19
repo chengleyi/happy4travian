@@ -138,22 +138,22 @@ jobs:
             sudo sed -n '1,120p' /etc/systemd/system/happy4travian.service || true
             echo "==> enforce ExecStart to micromamba gunicorn (overwrite unit)"
             sudo bash -lc 'cat > /etc/systemd/system/happy4travian.service <<EOF
-[Unit]
-Description=Happy4Travian Backend
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/happy4travian
-EnvironmentFile=/etc/happy4travian/happy4travian.env
-ExecStart=/opt/happy4travian/mamba/envs/h4t/bin/gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
-Restart=always
-RestartSec=5
-User=root
-LimitNOFILE=65535
-
-[Install]
-WantedBy=multi-user.target
-EOF'
+            [Unit]
+            Description=Happy4Travian Backend
+            After=network.target
+            
+            [Service]
+            WorkingDirectory=/opt/happy4travian
+            EnvironmentFile=/etc/happy4travian/happy4travian.env
+            ExecStart=/opt/happy4travian/mamba/envs/h4t/bin/gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
+            Restart=always
+            RestartSec=5
+            User=root
+            LimitNOFILE=65535
+            
+            [Install]
+            WantedBy=multi-user.target
+            EOF'
             echo "==> unit file after patch"
             sudo systemctl cat happy4travian.service || true
             echo "==> install micromamba (static)"
