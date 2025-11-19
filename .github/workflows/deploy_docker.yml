@@ -1,0 +1,60 @@
+name: deploy
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Upload backend context
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 47.243.146.179
+          username: ${{ secrets.SSH_USER }}
+          port: 22
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: backend_py/**
+          target: /opt/happy4travian/
+      - name: Upload resource icons
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 47.243.146.179
+          username: ${{ secrets.SSH_USER }}
+          port: 22
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: resource/**
+          target: /opt/happy4travian/
+      - name: Install Docker and run container
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: 47.243.146.179
+          username: ${{ secrets.SSH_USER }}
+          port: 22
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            set -e
+            sudo yum install -y yum-utils || true
+            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || true
+            sudo yum install -y docker-ce docker-ce-cli containerd.io || true
+            sudo systemctl enable docker --now
+            sudo mkdir -p /etc/happy4travian
+            sudo tee /etc/happy4travian/happy4travian.env >/dev/null <<'EOF'
+            SPRING_DATASOURCE_URL=jdbc:mysql://rm-j6c9w3jc5cf7bi608.mysql.cnhk.rds.aliyuncs.com:3306/game?useSSL=false&serverTimezone=UTC
+            SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}
+            TROOPS_PARAMS_PATH=/app/data/troops_t4.6_1x.json
+            EOF
+            sudo docker rm -f h4t-backend || true
+            sudo docker build -t h4t-backend:latest -f /opt/happy4travian/backend_py/Dockerfile /opt/happy4travian
+            sudo docker run -d --name h4t-backend -p 8080:8080 --env-file /etc/happy4travian/happy4travian.env --restart unless-stopped h4t-backend:latest
+            for i in 1 2 3 4 5 6 7 8 9 10; do code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/api/v1/health || echo 000); echo "health:$code"; [ "$code" = "200" ] && break; sleep 2; done
+      - name: External health probe
+        run: |
+          attempt() { curl -s -o /dev/null -w "%{http_code}" http://47.243.146.179/api/v1/health || echo 000; }
+          for i in 1 2 3 4 5 6 7 8 9 10; do code=$(attempt); echo "ext:$code"; [ "$code" = "200" ] && break; sleep 3; done
