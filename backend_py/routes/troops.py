@@ -670,6 +670,130 @@ def _guess_tribe_by_icons(patches):
     best_tid = min(scores.keys(), key=lambda k: scores[k])
     return best_tid, scores[best_tid]
 
+def _get_unit_names_from_json(tid: int):
+    data = None
+    try:
+        data_bytes = pkgutil.get_data('backend_py', 'data/troops_t4.6_1x.json')
+        if data_bytes:
+            data = json.loads(data_bytes.decode('utf-8'))
+    except Exception:
+        pass
+    if data is None:
+        candidates = []
+        base = os.path.dirname(os.path.dirname(__file__))
+        candidates.append(os.path.abspath(os.path.join(base, 'data', 'troops_t4.6_1x.json')))
+        candidates.append(os.path.abspath(os.path.join(os.getcwd(), 'backend_py', 'data', 'troops_t4.6_1x.json')))
+        for p in candidates:
+            if os.path.exists(p):
+                try:
+                    with open(p, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        break
+                except Exception:
+                    try:
+                        with open(p, 'r', encoding='utf-8-sig') as f:
+                            data = json.load(f)
+                            break
+                    except Exception:
+                        continue
+    if not data:
+        return []
+    tribes = data.get('tribes') or []
+    for t in tribes:
+        if int(t.get('tribeId')) == int(tid):
+            arr = t.get('units') or []
+            names = []
+            for u in arr:
+                n = str(u.get('name') or '').strip()
+                if not n:
+                    n = str(u.get('code') or '').strip()
+                names.append(n or 'unit')
+            return names
+    return []
+
+@bp.post('/api/v1/ocr/build-icons')
+def build_icons_from_image():
+    global Image, ImageOps, pytesseract
+    if Image is None:
+        try:
+            from PIL import Image as _Image, ImageOps as _ImageOps
+            Image = _Image
+            ImageOps = _ImageOps
+        except Exception:
+            return error('server_error', message='pil_missing', status=500)
+    if pytesseract is None:
+        try:
+            import pytesseract as _p
+            pytesseract = _p
+        except Exception:
+            return error('server_error', message='pytesseract_missing', status=500)
+    file = request.files.get('file')
+    if not file:
+        return error('bad_request', message='file_missing', status=400)
+    tribeId = int(request.form.get('tribeId') or 2)
+    tribe_name_map = {1:'roman',2:'teutons',3:'gauls',6:'egyptians',7:'huns',8:'spartan'}
+    tribe_dir = f"tribe_{tribeId}_{tribe_name_map.get(tribeId, 'unknown')}"
+    b = file.read()
+    img = Image.open(io.BytesIO(b)).convert('L')
+    img = ImageOps.autocontrast(img)
+    data = pytesseract.image_to_data(img, lang='chi_sim+eng', config='--psm 6', output_type=pytesseract.Output.DICT)
+    rows = {}
+    n = len(data.get('text', []))
+    for i in range(n):
+        txt = (data['text'][i] or '').strip()
+        ln = data.get('line_num', [0])[i]
+        if ln not in rows:
+            rows[ln] = []
+        rows[ln].append({'txt': txt,
+                          'left': int(data.get('left', [0])[i] or 0),
+                          'top': int(data.get('top', [0])[i] or 0),
+                          'width': int(data.get('width', [0])[i] or 0),
+                          'height': int(data.get('height', [0])[i] or 0)})
+    def is_num(s):
+        return bool(re.match(r'^\d+$', s))
+    target = None
+    for ln, tokens in sorted(rows.items(), key=lambda x: x[0]):
+        nums = [int(t['txt']) for t in tokens if is_num(t['txt'])]
+        if len(nums) >= 8:
+            target = (ln, tokens)
+            break
+    if not target:
+        return error('not_found', message='no_sufficient_numbers', status=404)
+    ln, tokens = target
+    num_centers = []
+    text_h = 0
+    for t in tokens:
+        if is_num(t['txt']):
+            cx = t['left'] + t['width'] // 2
+            num_centers.append(cx)
+            text_h = max(text_h, int(t['height']))
+    row_top = min([t['top'] for t in tokens])
+    band_h = int(text_h * 2)
+    header_y = max(0, row_top - band_h)
+    unit_names = _get_unit_names_from_json(tribeId)
+    dst_base = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'icons', tribe_dir))
+    os.makedirs(dst_base, exist_ok=True)
+    saved = []
+    icon_size = max(16, int(text_h * 1.6))
+    for idx, cx in enumerate(num_centers[:len(unit_names) or 10]):
+        x0 = max(0, cx - icon_size // 2)
+        y0 = header_y
+        x1 = min(img.width, x0 + icon_size)
+        y1 = min(img.height, y0 + icon_size)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        patch = img.crop((x0, y0, x1, y1))
+        nm = unit_names[idx] if idx < len(unit_names) else f"unit{idx+1}"
+        safe = re.sub(r'[^A-Za-z0-9_\-]', '_', nm)
+        fn = f"{idx+1:02d}_{safe}.png"
+        outp = os.path.join(dst_base, fn)
+        try:
+            patch.save(outp)
+            saved.append(outp)
+        except Exception:
+            continue
+    return ok({'saved': saved, 'dir': dst_base, 'tribeId': tribeId})
+
 @bp.post("/api/v1/troops/parse-upload")
 def parse_upload_troops():
     """解析网页片段并写入兵种数量"""
