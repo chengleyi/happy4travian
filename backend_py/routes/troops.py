@@ -476,6 +476,12 @@ def parse_image_troops_test():
         <div id=\"steps\"></div>
         <pre id=\"result\"></pre>
       </div>
+      <div class=\"box\">
+        <h2 style=\"font-size:16px;margin:0 0 8px\">生成列图标模板</h2>
+        <div style=\"margin-bottom:8px\">使用上面的同一截图，按 JSON 顺序切割每列图标并保存</div>
+        <div><button id=\"build\">生成模板</button></div>
+        <pre id=\"buildResult\"></pre>
+      </div>
       <script>
         const f=document.getElementById('file');
         const p=document.getElementById('preview');
@@ -491,6 +497,8 @@ def parse_image_troops_test():
         const result=document.getElementById('result');
         const bar=document.getElementById('bar');
         const steps=document.getElementById('steps');
+        const buildBtn=document.getElementById('build');
+        const buildResult=document.getElementById('buildResult');
         async function submit(){
           statusEl.textContent=''; result.textContent='';
           steps.textContent=''; bar.style.width='0%';
@@ -556,6 +564,27 @@ def parse_image_troops_test():
           }
         }
         btn.addEventListener('click', submit);
+        async function buildIcons(){
+          buildResult.textContent='';
+          const file=f.files&&f.files[0];
+          if(!file){ buildResult.textContent='请先选择截图文件'; return; }
+          buildBtn.disabled=true;
+          try{
+            const fd=new FormData();
+            fd.append('file', file);
+            const tid=document.getElementById('tribeId').value.trim();
+            fd.append('tribeId', tid||'2');
+            const resp=await fetch('/api/v1/ocr/build-icons',{method:'POST',body:fd});
+            const txt=await resp.text();
+            let data=null; try{ data=JSON.parse(txt);}catch(e){ data={raw:txt}; }
+            buildResult.textContent=JSON.stringify(data,null,2);
+          }catch(e){
+            buildResult.textContent=String(e);
+          }finally{
+            buildBtn.disabled=false;
+          }
+        }
+        buildBtn.addEventListener('click', buildIcons);
       </script>
     </body>
     </html>
