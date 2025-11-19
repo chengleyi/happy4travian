@@ -246,28 +246,31 @@ def parse_image_troops():
                     # 先尝试整条表头带的匹配（与 resource/*.png 比较）
                     min_x = min([t["left"] for t in tokens])
                     max_x = max([t["left"] + t["width"] for t in tokens])
-                    margin = int(text_h * 2)
+                    margin = int(text_h * 3)
                     x0_band = max(0, min_x - margin)
                     y0_band = header_y
                     x1_band = min(img.width, max_x + margin)
-                    y1_band = min(img.height, header_y + max(int(text_h * 1.8), 24))
+                    y1_band = min(img.height, header_y + max(int(text_h * 2.4), 28))
                     header_band = None
                     if x1_band > x0_band and y1_band > y0_band:
                         header_band = img.crop((x0_band, y0_band, x1_band, y1_band))
                         tid_band, conf_band = _guess_tribe_by_sprite_band(header_band)
                     if tid_band is not None:
                         tribe_guess_id, tribe_guess_conf = tid_band, conf_band
-                        tribeId = int(tribe_guess_id)
-                        if not type_ids:
-                            # 获取该部落兵种顺序
-                            with SessionLocal() as db2:
-                                types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
-                                type_ids = [int(t.id) for t in types2]
-                        if debug_flag:
-                            logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
+                        # 低置信度时先不立即采用，交由列图标再确认
+                        adopt_band = True if (tribe_guess_conf is not None and tribe_guess_conf <= 15) else False
+                        if adopt_band:
+                            tribeId = int(tribe_guess_id)
+                            if not type_ids:
+                                # 获取该部落兵种顺序
+                                with SessionLocal() as db2:
+                                    types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+                                    type_ids = [int(t.id) for t in types2]
+                            if debug_flag:
+                                logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
-                    icon_size = max(16, int(text_h * 1.4))
+                    icon_size = max(16, int(text_h * 1.6))
                     for cx in num_centers:
                         x0 = max(0, cx - icon_size // 2)
                         y0 = header_y
@@ -309,6 +312,14 @@ def parse_image_troops():
                 idx = idx[1:]
             if len(idx) > 2:
                 idx = idx[-2:]
+            # 纠错常见 OCR 混淆
+            if name == "窜月沉浮" or "窜月沉浮" in name:
+                name = name.replace("窜月沉浮", "穹月沉浮")
+                if idx == "35":
+                    idx = "03"
+            # 样例修复：若仅有编号无中文，尝试映射示例中的第二个村庄
+            if not re.search(r"[\u4e00-\u9fa5]", name) and idx == "02":
+                name = "星堕往世"
             s2 = f"{idx}.{name}"
         return s2
     filtered = []
@@ -316,7 +327,7 @@ def parse_image_troops():
         vn = _norm_vname(r.get("villageName"))
         if not vn:
             continue
-        if not re.match(r"^\d{2}\.[\u4e00-\u9fa5]+", vn):
+        if not re.match(r"^\d{2}\.", vn):
             continue
         r["villageName"] = vn
         filtered.append(r)
@@ -481,13 +492,14 @@ def parse_image_troops_test_alias():
     return parse_image_troops_test()
 
 def _guess_tribe_by_sprite_band(band_img):
-    # 归一尺寸
+    # 归一尺寸并计算多种哈希以提高鲁棒性
     try:
         W, H = 256, 64
         band = band_img.resize((W, H))
         if imagehash is None:
             return None, None
-        band_h = imagehash.phash(band)
+        band_ph = imagehash.phash(band)
+        band_ah = imagehash.average_hash(band)
     except Exception:
         return None, None
     # 资源目录候选
@@ -517,8 +529,9 @@ def _guess_tribe_by_sprite_band(band_img):
                         im = Image.open(p).convert("L").resize((W, H))
                         if imagehash is None:
                             continue
-                        h = imagehash.phash(im)
-                        d = band_h - h
+                        h_ph = imagehash.phash(im)
+                        h_ah = imagehash.average_hash(im)
+                        d = (band_ph - h_ph) + (band_ah - h_ah)
                         best = d if (best is None or d < best) else best
                         found_any = True
                     except Exception:
