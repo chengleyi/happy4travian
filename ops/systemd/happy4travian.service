@@ -8,7 +8,7 @@ After=network.target
 WorkingDirectory=/opt/happy4travian
 EnvironmentFile=/etc/happy4travian/happy4travian.env
 # 使用 gunicorn 启动 Flask 应用
-ExecStart=/opt/happy4travian/mamba/envs/h4t/bin/gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
+ExecStart=/opt/happy4travian/mamba/envs/h4t/bin/python -m gunicorn --chdir /opt/happy4travian/backend_py -w 2 -b 0.0.0.0:8080 app:app
 Restart=always
 RestartSec=5
 User=root
