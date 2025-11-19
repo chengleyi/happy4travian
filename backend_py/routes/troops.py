@@ -8,7 +8,7 @@
 - 获取兵种参数（支持倍速缩放）
 """
 import re
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, send_file, Response
 from utils.req import get_json
 from utils.resp import ok, error
 import pkgutil
@@ -295,6 +295,89 @@ def parse_image_troops():
                         db.add(TroopCount(village_id=int(vid), troop_type_id=int(tid), count=int(cnt)))
             db.commit()
     return ok({"rows": out_rows, "written": bool(write_flag), "tribeId": tribeId, "gameAccountId": gameAccountId})
+
+@bp.get("/api/v1/troops/parse-image/test")
+def parse_image_troops_test():
+    html = """
+    <!DOCTYPE html>
+    <html lang=\"zh-CN\">
+    <head>
+      <meta charset=\"utf-8\">
+      <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+      <title>解析游戏截图接口测试</title>
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:20px;color:#222}
+        h1{font-size:20px;margin:0 0 12px}
+        .box{border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:16px}
+        label{display:block;margin:8px 0 4px}
+        input[type=number],input[type=text]{width:240px;padding:6px;border:1px solid #ccc;border-radius:4px}
+        input[type=file]{margin-top:6px}
+        button{padding:8px 14px;border:0;background:#0d6efd;color:#fff;border-radius:6px;cursor:pointer}
+        button:disabled{background:#9bb9f3;cursor:not-allowed}
+        #preview{max-width:100%;max-height:240px;display:none;margin-top:10px;border:1px solid #eee;border-radius:6px}
+        pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:6px;padding:12px;overflow:auto}
+      </style>
+    </head>
+    <body>
+      <h1>上传游戏截图并解析兵种数量</h1>
+      <div class=\"box\">
+        <label>游戏截图文件</label>
+        <input id=\"file\" type=\"file\" accept=\"image/*\" />
+        <img id=\"preview\" alt=\"预览\" />
+        <label>gameAccountId（可选）</label>
+        <input id=\"gameAccountId\" type=\"number\" placeholder=\"例如 1\" />
+        <label>tribeId（可选）</label>
+        <input id=\"tribeId\" type=\"number\" placeholder=\"例如 1=罗马\" />
+        <label><input id=\"write\" type=\"checkbox\" /> 写入数据库</label>
+        <div style=\"margin-top:12px\"><button id=\"btn\">提交解析</button></div>
+      </div>
+      <div class=\"box\">
+        <div id=\"status\"></div>
+        <pre id=\"result\"></pre>
+      </div>
+      <script>
+        const f=document.getElementById('file');
+        const p=document.getElementById('preview');
+        f.addEventListener('change',()=>{
+          const file=f.files&&f.files[0];
+          if(file){
+            const url=URL.createObjectURL(file);
+            p.src=url; p.style.display='block';
+          }else{ p.style.display='none'; p.src=''; }
+        });
+        const btn=document.getElementById('btn');
+        const statusEl=document.getElementById('status');
+        const result=document.getElementById('result');
+        async function submit(){
+          statusEl.textContent=''; result.textContent='';
+          const file=f.files&&f.files[0];
+          if(!file){ statusEl.textContent='请先选择截图文件'; return; }
+          btn.disabled=true; statusEl.textContent='提交中…';
+          const fd=new FormData();
+          fd.append('file', file);
+          const gid=document.getElementById('gameAccountId').value.trim();
+          const tid=document.getElementById('tribeId').value.trim();
+          const write=document.getElementById('write').checked;
+          if(gid) fd.append('gameAccountId', gid);
+          if(tid) fd.append('tribeId', tid);
+          if(write) fd.append('write','1');
+          try{
+            const resp=await fetch('/api/v1/troops/parse-image',{method:'POST',body:fd});
+            const txt=await resp.text();
+            let data=null;
+            try{ data=JSON.parse(txt); }catch(e){ data={raw:txt}; }
+            statusEl.textContent='状态: '+resp.status;
+            result.textContent=JSON.stringify(data,null,2);
+          }catch(e){
+            statusEl.textContent='请求失败'; result.textContent=String(e);
+          }finally{ btn.disabled=false; }
+        }
+        btn.addEventListener('click', submit);
+      </script>
+    </body>
+    </html>
+    """
+    return Response(html, mimetype="text/html; charset=utf-8")
 
 def _guess_tribe_by_sprite_band(band_img):
     # 归一尺寸
