@@ -1,0 +1,11 @@
+{
+	"ios": {
+		"name": "HappyTravian"
+	},
+	"android": {
+		"name": "HappyTravian"
+	},
+	"common": {
+		"name": "HappyTravian"
+	}
+}

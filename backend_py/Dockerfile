@@ -9,11 +9,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # 安装依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
+    && rm -rf /var/lib/apt/lists/*
 COPY backend_py/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # 拷贝后端代码到镜像
 COPY backend_py /app
+COPY resource /app/resource
 
 # 暴露对外端口（gunicorn 监听 8080）
 EXPOSE 8080

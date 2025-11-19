@@ -65,6 +65,16 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: backend_py.tar.gz
           target: /opt/happy4travian/
+      - name: Upload resource icons
+        # 上传前端提供的部落图标拼图到服务器
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: resource/*
+          target: /opt/happy4travian/resource/
       - name: Ensure app.py and requirements uploaded
         # 确保关键文件已上传到运行目录
         uses: appleboy/scp-action@v0.1.7
@@ -120,6 +130,10 @@ jobs:
               sudo tar -xzf /opt/happy4travian/backend_py.tar.gz -C /opt/happy4travian
             fi
             sudo systemctl stop happy4travian.service || true
+            # 安装 Tesseract 及中文语言包（尽力而为）
+            sudo yum install -y epel-release || true
+            sudo yum install -y tesseract tesseract-langpack-chi_sim || true
+            sudo dnf install -y tesseract tesseract-langpack-chi_sim || true
             echo "==> install micromamba (static)"
             sudo mkdir -p /opt/happy4travian/micromamba/bin
             if [ ! -x /opt/happy4travian/micromamba/bin/micromamba ]; then

@@ -1,11 +1,42 @@
 {
-  "miniprogramRoot": "frontend/miniprogram",
+  "miniprogramRoot": "frontend/miniprogram/",
   "projectname": "happy4travian-demo",
-  "appid": "",
+  "appid": "wx16aafcc29e48f7c8",
   "description": "WeChat Mini Program Demo",
   "compileType": "miniprogram",
   "setting": {
     "urlCheck": false,
-    "es6": true
-  }
+    "es6": true,
+    "condition": true,
+    "postcss": false,
+    "compileWorklet": false,
+    "minified": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "simulatorType": "wechat",
+  "simulatorPluginLibVersion": {
+    "wxext14566970e7e9f62": "3.6.5-41"
+  },
+  "projectArchitecture": "multiPlatform",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }

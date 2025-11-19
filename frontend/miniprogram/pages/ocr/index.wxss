@@ -1,0 +1,5 @@
+.wrap { padding: 12px; }
+.title { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+.row { margin: 8px 0; }
+.preview { width: 100%; border: 1px solid #ddd; }
+input { border: 1px solid #ccc; padding: 8px; border-radius: 4px; }

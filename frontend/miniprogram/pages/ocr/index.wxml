@@ -1,0 +1,21 @@
+<view class="wrap">
+  <view class="title">兵力截图解析测试</view>
+  <view class="row">
+    <button bindtap="chooseImage">选择图片</button>
+  </view>
+  <view class="row" wx:if="{{imagePath}}">
+    <image src="{{imagePath}}" mode="widthFix" class="preview"></image>
+  </view>
+  <view class="row">
+    <input placeholder="游戏账号ID（可选）" type="number" bindinput="onInputAccount" value="{{gameAccountId}}" />
+  </view>
+  <view class="row">
+    <switch checked="{{write}}" bindchange="onToggleWrite"/> <text>写入数据库</text>
+  </view>
+  <view class="row">
+    <button type="primary" loading="{{uploading}}" bindtap="uploadAndParse">上传并解析</button>
+  </view>
+  <view class="row">
+    <text selectable="true">{{resultText}}</text>
+  </view>
+</view>

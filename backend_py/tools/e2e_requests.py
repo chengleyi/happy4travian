@@ -48,5 +48,19 @@ def main():
     sc, bad = get("/alliances?serverId=abc")
     print("alliances_bad", sc, json.dumps(bad, ensure_ascii=False))
 
+    # 解析图片接口（使用资源拼图进行部落识别冒烟）
+    try:
+        png_path = os.getenv("ICON_PNG", "/opt/happy4travian/resource/roman_small.png")
+        if os.path.exists(png_path):
+            with open(png_path, 'rb') as f:
+                files = { 'file': ('roman_small.png', f, 'image/png') }
+                data = { 'write': '0' }
+                r = requests.post(BASE + '/troops/parse-image', files=files, data=data)
+                print("parse-image", r.status_code, r.text[:200])
+        else:
+            print("parse-image skip: file not found", png_path)
+    except Exception as e:
+        print("parse-image error:", e)
+
 if __name__ == "__main__":
     main()

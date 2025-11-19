@@ -17,6 +17,11 @@ from models import TroopCount, TroopType, Village, GameAccount
 import os
 import json
 import urllib.request
+import io
+from PIL import Image, ImageOps
+import pytesseract
+import numpy as np
+import imagehash
 
 bp = Blueprint("troops", __name__)
 
@@ -100,6 +105,262 @@ def _parse_travian_html_to_counts(html: str, tribe_types: list):
         if i < len(nums):
             counts[int(t.id)] = int(nums[i])
     return counts
+
+@bp.post("/api/v1/troops/parse-image")
+def parse_image_troops():
+    file = request.files.get("file")
+    if not file:
+        return error("bad_request", message="file_missing", status=400)
+    gameAccountId_raw = request.form.get("gameAccountId")
+    tribeId_raw = request.form.get("tribeId")
+    write_flag = str(request.form.get("write" or "0")).strip() in ("1", "true", "True")
+    gameAccountId = None
+    tribeId = None
+    if gameAccountId_raw:
+        try:
+            gameAccountId = int(gameAccountId_raw)
+        except Exception:
+            return error("bad_request", message="gameAccountId_invalid", status=400)
+    if tribeId_raw:
+        try:
+            tribeId = int(tribeId_raw)
+        except Exception:
+            return error("bad_request", message="tribeId_invalid", status=400)
+    with SessionLocal() as db:
+        acc = None
+        if gameAccountId is not None:
+            acc = db.query(GameAccount).filter(GameAccount.id == gameAccountId).first()
+            if not acc:
+                return error("bad_request", message="account_not_found", status=400)
+            tribeId = acc.tribe_id
+        # 若暂未确定部落，先不报错，后续根据表头图标猜测
+        type_ids = []
+        if tribeId is not None:
+            types = db.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+            type_ids = [int(t.id) for t in types]
+        villages_by_name = {}
+        if acc:
+            vlist = db.query(Village).filter(Village.game_account_id == acc.id).all()
+            villages_by_name = {str(v.name).strip(): int(v.id) for v in vlist}
+    b = file.read()
+    img = Image.open(io.BytesIO(b)).convert("L")
+    img = ImageOps.autocontrast(img)
+    data = pytesseract.image_to_data(img, lang="chi_sim+eng", config="--psm 6", output_type=pytesseract.Output.DICT)
+    rows = {}
+    n = len(data.get("text", []))
+    for i in range(n):
+        txt = (data["text"][i] or "").strip()
+        conf = data.get("conf", ["0"])[i]
+        try:
+            c = float(conf)
+        except Exception:
+            c = -1.0
+        if not txt:
+            continue
+        if c < 0:
+            continue
+        ln = data.get("line_num", [0])[i]
+        if ln not in rows:
+            rows[ln] = []
+        rows[ln].append({
+            "txt": txt,
+            "left": int(data.get("left", [0])[i] or 0),
+            "top": int(data.get("top", [0])[i] or 0),
+            "width": int(data.get("width", [0])[i] or 0),
+            "height": int(data.get("height", [0])[i] or 0)
+        })
+    out_rows = []
+    def is_num(s):
+        return bool(re.match(r"^\d+$", s))
+    for ln, tokens in sorted(rows.items(), key=lambda x: x[0]):
+        joined = "".join([t["txt"] for t in tokens])
+        if any(x in joined for x in ["總和", "总和", "總計", "总计"]):
+            continue
+        nums = [int(t["txt"]) for t in tokens if is_num(t["txt"])]
+        if not nums:
+            continue
+        name_tokens = []
+        for t in tokens:
+            if not is_num(t["txt"]):
+                name_tokens.append(t["txt"])
+            else:
+                break
+        vname = "".join(name_tokens).strip()
+        if not vname:
+            vname = None
+        # 记录本行的数字列中心位置与文本高度用于后续图标识别
+        num_centers = []
+        text_h = 0
+        for t in tokens:
+            if is_num(t["txt"]):
+                cx = t["left"] + t["width"] // 2
+                num_centers.append(cx)
+                text_h = max(text_h, int(t["height"]))
+        # 仅在 tribe 未明确时，尝试通过表头图标猜测
+        tribe_guess_id = None
+        tribe_guess_conf = None
+        if tribeId is None:
+            try:
+                if tokens:
+                    row_top = min([t["top"] for t in tokens])
+                    band_h = int(text_h * 2)
+                    header_y = max(0, row_top - band_h)
+                    # 先尝试整条表头带的匹配（与 resource/*.png 比较）
+                    min_x = min([t["left"] for t in tokens])
+                    max_x = max([t["left"] + t["width"] for t in tokens])
+                    margin = int(text_h * 2)
+                    x0_band = max(0, min_x - margin)
+                    y0_band = header_y
+                    x1_band = min(img.width, max_x + margin)
+                    y1_band = min(img.height, header_y + max(int(text_h * 1.8), 24))
+                    header_band = None
+                    if x1_band > x0_band and y1_band > y0_band:
+                        header_band = img.crop((x0_band, y0_band, x1_band, y1_band))
+                        tid_band, conf_band = _guess_tribe_by_sprite_band(header_band)
+                    if tid_band is not None:
+                        tribe_guess_id, tribe_guess_conf = tid_band, conf_band
+                        tribeId = int(tribe_guess_id)
+                        if not type_ids:
+                            # 获取该部落兵种顺序
+                            with SessionLocal() as db2:
+                                types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+                                type_ids = [int(t.id) for t in types2]
+                    # 若整带不确定，再尝试按列图标小块匹配
+                    patches = []
+                    icon_size = max(16, int(text_h * 1.4))
+                    for cx in num_centers:
+                        x0 = max(0, cx - icon_size // 2)
+                        y0 = header_y
+                        x1 = min(img.width, x0 + icon_size)
+                        y1 = min(img.height, y0 + icon_size)
+                        if x1 > x0 and y1 > y0:
+                            patches.append(img.crop((x0, y0, x1, y1)))
+                    tribe_guess_id, tribe_guess_conf = _guess_tribe_by_icons(patches)
+                    if tribe_guess_id is not None:
+                        tribeId = int(tribe_guess_id)
+                        if not type_ids:
+                            with SessionLocal() as db2:
+                                types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+                                type_ids = [int(t.id) for t in types2]
+            except Exception:
+                pass
+        counts_map = {}
+        for idx, tid in enumerate(type_ids):
+            if idx < len(nums):
+                counts_map[int(tid)] = int(nums[idx])
+            else:
+                counts_map[int(tid)] = 0
+        vid = None
+        if vname and vname in villages_by_name:
+            vid = villages_by_name[vname]
+        out_rows.append({"villageId": vid, "villageName": vname, "counts": counts_map})
+    if write_flag:
+        with SessionLocal() as db:
+            for r in out_rows:
+                vid = r.get("villageId")
+                if not vid:
+                    continue
+                for tid, cnt in r.get("counts", {}).items():
+                    existing = db.query(TroopCount).filter(TroopCount.village_id == int(vid), TroopCount.troop_type_id == int(tid)).first()
+                    if existing:
+                        existing.count = int(cnt)
+                    else:
+                        db.add(TroopCount(village_id=int(vid), troop_type_id=int(tid), count=int(cnt)))
+            db.commit()
+    return ok({"rows": out_rows, "written": bool(write_flag), "tribeId": tribeId, "gameAccountId": gameAccountId})
+
+def _guess_tribe_by_sprite_band(band_img):
+    # 归一尺寸
+    try:
+        W, H = 256, 64
+        band = band_img.resize((W, H))
+        band_h = imagehash.phash(band)
+    except Exception:
+        return None, None
+    # 资源目录候选
+    candidates = {
+        1: ["roman_small.png", "roman.png"],
+        2: ["teuton_small.png", "teutons.png"],
+        3: ["gaul_small.png", "gauls.png"],
+        6: ["egyptian_small.png", "egyptians.png"],
+        7: ["hun_small.png", "huns.png"],
+        8: ["spartan_small.png", "spartan.png"]
+    }
+    base_dirs = []
+    # repo 根的 resource
+    base_dirs.append(os.path.abspath(os.path.join(os.getcwd(), "resource")))
+    # 后端工作目录下的 resource（容器）
+    base_dirs.append(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "resource")))
+    base_dirs.append(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "resource")))
+    scores = {}
+    found_any = False
+    for tid, names in candidates.items():
+        best = None
+        for bd in base_dirs:
+            for nm in names:
+                p = os.path.join(bd, nm)
+                if os.path.exists(p):
+                    try:
+                        im = Image.open(p).convert("L").resize((W, H))
+                        h = imagehash.phash(im)
+                        d = band_h - h
+                        best = d if (best is None or d < best) else best
+                        found_any = True
+                    except Exception:
+                        continue
+        if best is not None:
+            scores[tid] = best
+    if not found_any or not scores:
+        return None, None
+    best_tid = min(scores.keys(), key=lambda k: scores[k])
+    return best_tid, scores[best_tid]
+
+def _guess_tribe_by_icons(patches):
+    base = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "icons"))
+    candidates = {
+        1: "roman",
+        2: "teutons",
+        3: "gauls",
+        6: "egyptians",
+        7: "huns"
+    }
+    # 加载模板哈希
+    tpl = {}
+    for tid, name in candidates.items():
+        d = os.path.join(base, f"tribe_{tid}_{name}")
+        arr = []
+        if os.path.isdir(d):
+            for fn in os.listdir(d):
+                p = os.path.join(d, fn)
+                try:
+                    im = Image.open(p).convert("L")
+                    arr.append(imagehash.phash(im))
+                except Exception:
+                    continue
+        if arr:
+            tpl[tid] = arr
+    if not tpl:
+        return None, None
+    # 计算每个补丁与模板的最小距离并汇总
+    scores = {}
+    for tid, arr in tpl.items():
+        dsum = 0
+        cnt = 0
+        for patch in patches:
+            try:
+                h = imagehash.phash(patch)
+                dist = min([h - th for th in arr]) if arr else 64
+            except Exception:
+                dist = 64
+            dsum += dist
+            cnt += 1
+        if cnt > 0:
+            scores[tid] = dsum / float(cnt)
+    if not scores:
+        return None, None
+    # 距离越小越匹配
+    best_tid = min(scores.keys(), key=lambda k: scores[k])
+    return best_tid, scores[best_tid]
 
 @bp.post("/api/v1/troops/parse-upload")
 def parse_upload_troops():
