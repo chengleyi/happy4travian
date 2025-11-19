@@ -148,6 +148,14 @@ jobs:
               PY_BIN=$(command -v python3)
             fi
             echo "PY_BIN=$PY_BIN"
+            if [ -n "$PY_BIN" ]; then
+              echo "==> inspect python binary"
+              ls -lah "$PY_BIN" || true
+              file "$PY_BIN" || true
+              "$PY_BIN" -V || true
+              echo "==> list bin directory"
+              ls -lah "$(dirname "$PY_BIN")" || true
+            fi
             if [ -z "$PY_BIN" ]; then
               echo "no python found, installing python3.11 via IUS"
               sudo yum install -y https://repo.ius.io/ius-release-el7.rpm || true
@@ -177,6 +185,8 @@ jobs:
             EOF'
             echo "==> unit file after patch"
             sudo systemctl cat happy4travian.service || true
+            echo "==> ExecStart value"
+            sudo systemctl show happy4travian.service -p ExecStart || true
             echo "==> install micromamba (static)"
             sudo mkdir -p /opt/happy4travian/micromamba/bin
             if [ ! -x /opt/happy4travian/micromamba/bin/micromamba ]; then
