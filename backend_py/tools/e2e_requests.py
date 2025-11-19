@@ -3,7 +3,7 @@ import time
 import json
 import requests
 
-BASE = os.getenv("BASE_URL", "http://47.99.88.168:8080/api/v1")
+BASE = os.getenv("BASE_URL", "http://47.243.146.179:8080/api/v1")
 
 def post(path, payload):
     r = requests.post(BASE + path, json=payload)
@@ -27,7 +27,8 @@ def main():
     print("servers", sc, json.dumps(s, ensure_ascii=False))
     sid = s.get("data", {}).get("id")
 
-    sc, t = post("/tribes", {"code": "PYROM-" + ts, "name": "Py Romans"})
+    short = ts[-8:]
+    sc, t = post("/tribes", {"code": "PRM" + short, "name": "Py Romans"})
     print("tribes", sc, json.dumps(t, ensure_ascii=False))
     tid = t.get("data", {}).get("id")
 

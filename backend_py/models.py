@@ -2,7 +2,7 @@
 
 定义系统核心实体表结构：用户、服务器、部落、游戏账号、村庄、兵种计数、联盟及成员、兵种类型。
 """
-from sqlalchemy import Column, Integer, BigInteger, String, Date, DateTime
+from sqlalchemy import Column, Integer, BigInteger, String, Date, DateTime, Text
 from db import Base
 
 class User(Base):
@@ -61,7 +61,7 @@ class Alliance(Base):
     server_id = Column(BigInteger, nullable=False)
     name = Column(String(64), nullable=False)
     tag = Column(String(16), nullable=False)
-    description = Column(String)
+    description = Column(Text)
     created_by = Column(BigInteger, nullable=False)
     created_at = Column(DateTime)
 
