@@ -162,9 +162,14 @@ jobs:
               sudo yum install -y python311 python311-pip || true
               PY_BIN=/usr/bin/python3.11
             fi
-            # ensure gunicorn available in selected python
+            # ensure gunicorn and app deps available in selected python
             $PY_BIN -m pip install --upgrade pip || true
+            if [ -f /opt/happy4travian/backend_py/requirements.txt ]; then
+              $PY_BIN -m pip install -r /opt/happy4travian/backend_py/requirements.txt || true
+            fi
             $PY_BIN -m pip install gunicorn || true
+            $PY_BIN -m pip install Pillow pytesseract imagehash numpy || true
+            $PY_BIN -c 'import sys; print("PY_BIN:", sys.executable); import flask, sqlalchemy, pymysql; import PIL, pytesseract; print("deps ok")' || true
             echo "==> enforce ExecStart (overwrite unit)"
             sudo bash -lc 'cat > /etc/systemd/system/happy4travian.service <<EOF
             [Unit]

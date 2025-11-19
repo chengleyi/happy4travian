@@ -9,6 +9,7 @@
 import logging
 import json
 from flask import Flask, request, Response
+import os, sys, platform, shutil
 from werkzeug.exceptions import HTTPException
 from flask_cors import CORS
 from routes.system import bp as system_bp
@@ -34,6 +35,36 @@ def create_app():
     CORS(app, origins=["https://happy4travian.com", "https://www.happy4travian.com"], methods=["GET","POST","PUT","DELETE","OPTIONS"], allow_headers=["*"])
     # 简单文件日志（位于 /opt/happy4travian/app.log 或当前目录）
     logging.basicConfig(filename="app.log", level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    try:
+        logging.info("boot python_executable=%s python_version=%s platform=%s", sys.executable, sys.version.replace("\n"," "), platform.platform())
+        logging.info("boot cwd=%s", os.getcwd())
+        tp = os.getenv("TROOPS_PARAMS_PATH")
+        logging.info("boot env TROOPS_PARAMS_PATH=%s", tp or "")
+        tpath = shutil.which("tesseract")
+        logging.info("boot which tesseract=%s", tpath or "")
+        try:
+            import PIL
+            logging.info("boot dep PIL=%s", getattr(PIL, "__version__", ""))
+        except Exception as e:
+            logging.info("boot dep PIL_missing=%s", str(e))
+        try:
+            import pytesseract
+            logging.info("boot dep pytesseract=%s", getattr(pytesseract, "__version__", ""))
+        except Exception as e:
+            logging.info("boot dep pytesseract_missing=%s", str(e))
+        try:
+            import imagehash
+            logging.info("boot dep imagehash=%s", getattr(imagehash, "__version__", ""))
+        except Exception as e:
+            logging.info("boot dep imagehash_missing=%s", str(e))
+        try:
+            import numpy as np
+            logging.info("boot dep numpy=%s", getattr(np, "__version__", ""))
+        except Exception as e:
+            logging.info("boot dep numpy_missing=%s", str(e))
+    except Exception:
+        pass
 
     @app.before_request
     def _log_before():
