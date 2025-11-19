@@ -18,6 +18,7 @@ import os
 import json
 import urllib.request
 import io
+import time
 Image = None
 ImageOps = None
 pytesseract = None
@@ -138,6 +139,9 @@ def parse_image_troops():
     file = request.files.get("file")
     if not file:
         return error("bad_request", message="file_missing", status=400)
+    debug_flag = str(request.form.get("debug") or request.args.get("debug") or "0").strip() in ("1", "true", "True")
+    logs = []
+    t0 = time.time()
     gameAccountId_raw = request.form.get("gameAccountId")
     tribeId_raw = request.form.get("tribeId")
     write_flag = str(request.form.get("write" or "0")).strip() in ("1", "true", "True")
@@ -170,9 +174,15 @@ def parse_image_troops():
             vlist = db.query(Village).filter(Village.game_account_id == acc.id).all()
             villages_by_name = {str(v.name).strip(): int(v.id) for v in vlist}
     b = file.read()
+    if debug_flag:
+        logs.append({"step": "read_file", "size": len(b), "ts": round(time.time()-t0,3)})
     img = Image.open(io.BytesIO(b)).convert("L")
     img = ImageOps.autocontrast(img)
+    if debug_flag:
+        logs.append({"step": "prepare_image", "w": img.width, "h": img.height, "ts": round(time.time()-t0,3)})
     data = pytesseract.image_to_data(img, lang="chi_sim+eng", config="--psm 6", output_type=pytesseract.Output.DICT)
+    if debug_flag:
+        logs.append({"step": "tesseract_data", "n": len(data.get("text", [])), "ts": round(time.time()-t0,3)})
     rows = {}
     n = len(data.get("text", []))
     for i in range(n):
@@ -197,6 +207,7 @@ def parse_image_troops():
             "height": int(data.get("height", [0])[i] or 0)
         })
     out_rows = []
+    raw_rows = []
     def is_num(s):
         return bool(re.match(r"^\d+$", s))
     for ln, tokens in sorted(rows.items(), key=lambda x: x[0]):
@@ -252,6 +263,8 @@ def parse_image_troops():
                             with SessionLocal() as db2:
                                 types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
                                 type_ids = [int(t.id) for t in types2]
+                        if debug_flag:
+                            logs.append({"step": "tribe_header_band", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
                     icon_size = max(16, int(text_h * 1.4))
@@ -269,6 +282,8 @@ def parse_image_troops():
                             with SessionLocal() as db2:
                                 types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
                                 type_ids = [int(t.id) for t in types2]
+                        if debug_flag:
+                            logs.append({"step": "tribe_icons", "tribeId": tribeId, "score": tribe_guess_conf, "ts": round(time.time()-t0,3)})
             except Exception:
                 pass
         counts_map = {}
@@ -280,7 +295,42 @@ def parse_image_troops():
         vid = None
         if vname and vname in villages_by_name:
             vid = villages_by_name[vname]
-        out_rows.append({"villageId": vid, "villageName": vname, "counts": counts_map})
+        raw_rows.append({"villageId": vid, "villageName": vname, "counts": counts_map})
+    def _norm_vname(s):
+        if not s:
+            return None
+        s2 = re.sub(r"\s+", "", s)
+        s2 = re.sub(r"[^\d\.\u4e00-\u9fa5]", "", s2)
+        m = re.match(r"^(\d{2,3})\.(.+)$", s2)
+        if m:
+            idx = m.group(1)
+            name = m.group(2)
+            if len(idx) == 3 and idx.startswith("0"):
+                idx = idx[1:]
+            if len(idx) > 2:
+                idx = idx[-2:]
+            s2 = f"{idx}.{name}"
+        return s2
+    filtered = []
+    for r in raw_rows:
+        vn = _norm_vname(r.get("villageName"))
+        if not vn:
+            continue
+        if not re.match(r"^\d{2}\.[\u4e00-\u9fa5]+", vn):
+            continue
+        r["villageName"] = vn
+        filtered.append(r)
+    idx_seen = set()
+    for r in filtered:
+        m = re.match(r"^(\d{2})\.", r["villageName"])
+        if not m:
+            continue
+        idx = m.group(1)
+        if idx not in idx_seen and len(out_rows) < 3:
+            idx_seen.add(idx)
+            out_rows.append(r)
+    if debug_flag:
+        logs.append({"step": "rows_extracted", "raw": len(raw_rows), "kept": len(out_rows), "ts": round(time.time()-t0,3)})
     if write_flag:
         with SessionLocal() as db:
             for r in out_rows:
@@ -294,7 +344,11 @@ def parse_image_troops():
                     else:
                         db.add(TroopCount(village_id=int(vid), troop_type_id=int(tid), count=int(cnt)))
             db.commit()
-    return ok({"rows": out_rows, "written": bool(write_flag), "tribeId": tribeId, "gameAccountId": gameAccountId})
+    tribe_label_map = {1:"罗马",2:"条顿",3:"高卢",6:"埃及",7:"匈奴",8:"斯巴达"}
+    resp = {"rows": out_rows, "written": bool(write_flag), "tribeId": tribeId, "tribeLabel": tribe_label_map.get(int(tribeId)) if tribeId is not None else None, "gameAccountId": gameAccountId}
+    if debug_flag:
+        resp["logs"] = logs
+    return ok(resp)
 
 @bp.get("/api/v1/troops/parse-image/test")
 def parse_image_troops_test():
@@ -316,6 +370,9 @@ def parse_image_troops_test():
         button:disabled{background:#9bb9f3;cursor:not-allowed}
         #preview{max-width:100%;max-height:240px;display:none;margin-top:10px;border:1px solid #eee;border-radius:6px}
         pre{background:#f6f8fa;border:1px solid #e1e4e8;border-radius:6px;padding:12px;overflow:auto}
+        #progress{height:8px;background:#eee;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;margin-top:8px}
+        #bar{height:100%;width:0;background:#28a745;transition:width .25s}
+        #steps{font-size:12px;color:#555;margin-top:8px;line-height:1.6}
       </style>
     </head>
     <body>
@@ -333,6 +390,8 @@ def parse_image_troops_test():
       </div>
       <div class=\"box\">
         <div id=\"status\"></div>
+        <div id=\"progress\"><div id=\"bar\"></div></div>
+        <div id=\"steps\"></div>
         <pre id=\"result\"></pre>
       </div>
       <script>
@@ -348,11 +407,14 @@ def parse_image_troops_test():
         const btn=document.getElementById('btn');
         const statusEl=document.getElementById('status');
         const result=document.getElementById('result');
+        const bar=document.getElementById('bar');
+        const steps=document.getElementById('steps');
         async function submit(){
           statusEl.textContent=''; result.textContent='';
+          steps.textContent=''; bar.style.width='0%';
           const file=f.files&&f.files[0];
           if(!file){ statusEl.textContent='请先选择截图文件'; return; }
-          btn.disabled=true; statusEl.textContent='提交中…';
+          btn.disabled=true; statusEl.textContent='提交中…'; bar.style.width='10%';
           const fd=new FormData();
           fd.append('file', file);
           const gid=document.getElementById('gameAccountId').value.trim();
@@ -361,16 +423,51 @@ def parse_image_troops_test():
           if(gid) fd.append('gameAccountId', gid);
           if(tid) fd.append('tribeId', tid);
           if(write) fd.append('write','1');
+          fd.append('debug','1');
           try{
-            const resp=await fetch('/api/v1/troops/parse-image',{method:'POST',body:fd});
-            const txt=await resp.text();
-            let data=null;
-            try{ data=JSON.parse(txt); }catch(e){ data={raw:txt}; }
-            statusEl.textContent='状态: '+resp.status;
-            result.textContent=JSON.stringify(data,null,2);
+            const xhr=new XMLHttpRequest();
+            xhr.open('POST','/api/v1/troops/parse-image');
+            xhr.upload.onprogress=(e)=>{
+              if(e.lengthComputable){
+                const pct=Math.min(40, Math.round(e.loaded/e.total*40));
+                bar.style.width=pct+'%';
+                steps.textContent='上传进度: '+pct+'%';
+              }
+            };
+            xhr.onreadystatechange=()=>{
+              if(xhr.readyState===4){
+                btn.disabled=false;
+                try{
+                  const data=JSON.parse(xhr.responseText||'{}');
+                  statusEl.textContent='状态: '+xhr.status+(data&&data.tribeId?('，tribeId: '+data.tribeId+'（'+(data.tribeLabel||'')+'）'):'');
+                  const L=(data&&data.logs)||[];
+                  const seqKeys=['read_file','prepare_image','tesseract_data','tribe_header_band','tribe_icons','rows_extracted'];
+                  const seq=L.filter(x=>seqKeys.includes(x.step));
+                  const perc=[50,65,80,90,95,100];
+                  steps.innerHTML='';
+                  let i=0;
+                  function advance(){
+                    if(i<seq.length){
+                      bar.style.width=perc[i]+'%';
+                      const s=seq[i];
+                      steps.innerHTML += '<div>'+s.step+': '+JSON.stringify(s)+'</div>';
+                      i++;
+                      setTimeout(advance,180);
+                    }else{ bar.style.width='100%'; }
+                  }
+                  advance();
+                  result.textContent=JSON.stringify(data,null,2);
+                }catch(err){
+                  statusEl.textContent='解析失败';
+                  result.textContent=xhr.responseText||String(err);
+                }
+              }
+            };
+            xhr.send(fd);
           }catch(e){
+            btn.disabled=false;
             statusEl.textContent='请求失败'; result.textContent=String(e);
-          }finally{ btn.disabled=false; }
+          }
         }
         btn.addEventListener('click', submit);
       </script>
