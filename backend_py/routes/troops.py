@@ -339,15 +339,16 @@ def parse_image_troops():
             except Exception:
                 pass
         counts_map = {}
-        for idx, tid in enumerate(type_ids):
-            if idx < len(nums):
-                counts_map[int(tid)] = int(nums[idx])
-            else:
-                counts_map[int(tid)] = 0
+        if type_ids:
+            for idx, tid in enumerate(type_ids):
+                if idx < len(nums):
+                    counts_map[int(tid)] = int(nums[idx])
+                else:
+                    counts_map[int(tid)] = 0
         vid = None
         if vname and vname in villages_by_name:
             vid = villages_by_name[vname]
-        raw_rows.append({"villageId": vid, "villageName": vname, "counts": counts_map})
+        raw_rows.append({"villageId": vid, "villageName": vname, "counts": counts_map, "nums": nums})
     def _norm_vname(s):
         if not s:
             return None
@@ -392,7 +393,10 @@ def parse_image_troops():
         filtered.append(r)
     # 仅保留3行（按数值总和降序）
     filtered.sort(key=lambda x: sum(int(v) for v in (x.get("counts") or {}).values()), reverse=True)
-    out_rows = filtered[:3]
+    out_rows = []
+    for r in filtered[:3]:
+        # 复制并保留 nums 以便后续重映射
+        out_rows.append({"villageId": r.get("villageId"), "villageName": r.get("villageName"), "counts": dict(r.get("counts") or {}), "nums": list(r.get("nums") or [])})
     # 若中文名缺失，按样例填充中文名
     name_map = {"01": "梦幻空花", "02": "星堕往世", "03": "穹月沉浮"}
     for r in out_rows:
@@ -413,6 +417,16 @@ def parse_image_troops():
                 type_ids = [int(t.id) for t in types2]
         if debug_flag:
             logs.append({"step": "tribe_fallback", "tribeId": tribeId, "score": global_best_score, "ts": round(time.time()-t0,3)})
+    # 若此时已有 tribeId/type_ids，但此前 counts 为空，则基于 nums 重映射
+    if tribeId is not None and type_ids:
+        for r in out_rows:
+            nums = r.get("nums") or []
+            cm = {}
+            for idx, tid in enumerate(type_ids):
+                cm[int(tid)] = int(nums[idx]) if idx < len(nums) else 0
+            r["counts"] = cm
+            # 移除内部字段
+            r.pop("nums", None)
     if write_flag:
         with SessionLocal() as db:
             for r in out_rows:
