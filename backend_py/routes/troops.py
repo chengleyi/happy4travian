@@ -301,6 +301,17 @@ def parse_image_troops():
                         y1 = min(img.height, y0 + icon_size)
                         if x1 > x0 and y1 > y0:
                             patches.append(img.crop((x0, y0, x1, y1)))
+                    # 先尝试单图命中（匹配到任意一个模板即判定部落，排除冲车）
+                    tid_single, conf_single = _guess_tribe_by_single_icon(patches, threshold=12)
+                    if tid_single is not None:
+                        tribeId = int(tid_single)
+                        if not type_ids:
+                            with SessionLocal() as db2:
+                                types2 = db2.query(TroopType).filter(TroopType.tribe_id == tribeId).order_by(TroopType.id.asc()).all()
+                                type_ids = [int(t.id) for t in types2]
+                        if debug_flag:
+                            logs.append({"step": "tribe_single_icon", "tribeId": tribeId, "score": conf_single, "ts": round(time.time()-t0,3)})
+                    # 若单图未命中，再做平均距离匹配
                     tribe_guess_id, tribe_guess_conf = _guess_tribe_by_icons(patches)
                     if tribe_guess_id is not None:
                         tribeId = int(tribe_guess_id)
@@ -662,31 +673,36 @@ def _guess_tribe_by_sprite_band(band_img):
     return best_tid, scores[best_tid]
 
 def _guess_tribe_by_icons(patches):
-    base = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "icons"))
-    candidates = {
-        1: "roman",
-        2: "teutons",
-        3: "gauls",
-        6: "egyptians",
-        7: "huns"
-    }
-    # 加载模板哈希
-    tpl = {}
-    for tid, name in candidates.items():
-        d = os.path.join(base, f"tribe_{tid}_{name}")
-        arr = []
-        if os.path.isdir(d):
-            for fn in os.listdir(d):
-                p = os.path.join(d, fn)
-                try:
-                    im = Image.open(p).convert("L")
-                    if imagehash is None:
-                        continue
-                    arr.append((imagehash.phash(im), imagehash.average_hash(im)))
-                except Exception:
-                    continue
-        if arr:
-            tpl[tid] = arr
+    def load_templates(exclude_ram=True):
+        bases = []
+        bases.append(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "icons")))
+        bases.append(os.path.abspath(os.path.join(os.getcwd(), "backend_py", "data", "icons")))
+        bases.append(os.path.abspath(os.path.join(os.getcwd(), "resource", "icons")))
+        bases.append(os.path.abspath(os.path.join(os.getcwd(), "icons")))
+        name_map = {1:"roman",2:"teutons",3:"gauls",6:"egyptians",7:"huns",8:"spartan"}
+        tpl = {}
+        for tid, nm in name_map.items():
+            arr = []
+            sub = f"tribe_{tid}_{nm}"
+            for base in bases:
+                d = os.path.join(base, sub)
+                if os.path.isdir(d):
+                    for fn in os.listdir(d):
+                        # 跳过冲车模板以避免误判
+                        if exclude_ram and re.search(r"ram|battering|冲车", fn, flags=re.I):
+                            continue
+                        p = os.path.join(d, fn)
+                        try:
+                            im = Image.open(p).convert("L")
+                            if imagehash is None:
+                                continue
+                            arr.append((imagehash.phash(im), imagehash.average_hash(im)))
+                        except Exception:
+                            continue
+            if arr:
+                tpl[tid] = arr
+        return tpl
+    tpl = load_templates(exclude_ram=True)
     if not tpl:
         return None, None
     # 计算每个补丁与模板的最小距离并汇总
@@ -712,6 +728,50 @@ def _guess_tribe_by_icons(patches):
     # 距离越小越匹配
     best_tid = min(scores.keys(), key=lambda k: scores[k])
     return best_tid, scores[best_tid]
+
+def _guess_tribe_by_single_icon(patches, threshold=12):
+    # 单图命中即判定部落（排除冲车）
+    bases = []
+    bases.append(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "icons")))
+    bases.append(os.path.abspath(os.path.join(os.getcwd(), "backend_py", "data", "icons")))
+    bases.append(os.path.abspath(os.path.join(os.getcwd(), "resource", "icons")))
+    bases.append(os.path.abspath(os.path.join(os.getcwd(), "icons")))
+    name_map = {1:"roman",2:"teutons",3:"gauls",6:"egyptians",7:"huns",8:"spartan"}
+    templates = []
+    for tid, nm in name_map.items():
+        sub = f"tribe_{tid}_{nm}"
+        for base in bases:
+            d = os.path.join(base, sub)
+            if os.path.isdir(d):
+                for fn in os.listdir(d):
+                    if re.search(r"ram|battering|冲车", fn, flags=re.I):
+                        continue
+                    p = os.path.join(d, fn)
+                    try:
+                        im = Image.open(p).convert("L")
+                        if imagehash is None:
+                            continue
+                        templates.append((tid, imagehash.phash(im), imagehash.average_hash(im)))
+                    except Exception:
+                        continue
+    if not templates:
+        return None, None
+    for patch in patches:
+        try:
+            h_ph = imagehash.phash(patch)
+            h_ah = imagehash.average_hash(patch)
+        except Exception:
+            continue
+        best_tid = None
+        best_dist = None
+        for (tid, th_ph, th_ah) in templates:
+            d = (h_ph - th_ph) + (h_ah - th_ah)
+            if best_dist is None or d < best_dist:
+                best_dist = d
+                best_tid = tid
+        if best_dist is not None and best_dist <= threshold:
+            return best_tid, best_dist
+    return None, None
 
 def _get_unit_names_from_json(tid: int):
     data = None
