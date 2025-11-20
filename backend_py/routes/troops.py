@@ -293,9 +293,9 @@ def parse_image_troops():
                                 global_best_tid = int(tribe_guess_id)
                     # 若整带不确定，再尝试按列图标小块匹配
                     patches = []
-                    icon_size = max(20, int(text_h * 1.8))
+                    icon_size = max(22, int(text_h * 2.0))
                     for cx in num_centers:
-                        for oy in (0, int(text_h*0.4), int(text_h*0.8)):
+                        for oy in (-int(text_h*1.0), -int(text_h*0.6), -int(text_h*0.3), 0, int(text_h*0.3), int(text_h*0.6)):
                             x0 = max(0, cx - icon_size // 2)
                             y0 = max(0, header_y + oy)
                             x1 = min(img.width, x0 + icon_size)
@@ -303,7 +303,7 @@ def parse_image_troops():
                             if x1 > x0 and y1 > y0:
                                 patches.append(img.crop((x0, y0, x1, y1)))
                     # 先尝试单图命中（匹配到任意一个模板即判定部落，排除冲车）
-                    tid_single, conf_single = _guess_tribe_by_single_icon(patches, threshold=16)
+                    tid_single, conf_single = _guess_tribe_by_single_icon(patches, threshold=14)
                     if tid_single is not None:
                         tribeId = int(tid_single)
                         if not type_ids:
@@ -733,7 +733,7 @@ def _guess_tribe_by_icons(patches):
     best_tid = min(scores.keys(), key=lambda k: scores[k])
     return best_tid, scores[best_tid]
 
-def _guess_tribe_by_single_icon(patches, threshold=12):
+def _guess_tribe_by_single_icon(patches, threshold=14, min_gap=2):
     # 单图命中即判定部落（排除冲车）
     bases = []
     bases.append(os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "icons")))
@@ -768,13 +768,18 @@ def _guess_tribe_by_single_icon(patches, threshold=12):
             continue
         best_tid = None
         best_dist = None
+        second_best = None
         for (tid, th_ph, th_ah) in templates:
             d = (h_ph - th_ph) + (h_ah - th_ah)
             if best_dist is None or d < best_dist:
+                second_best = best_dist
                 best_dist = d
                 best_tid = tid
+            elif second_best is None or d < second_best:
+                second_best = d
         if best_dist is not None and best_dist <= threshold:
-            return best_tid, best_dist
+            if second_best is None or (second_best - best_dist) >= min_gap:
+                return best_tid, best_dist
     return None, None
 
 def _get_unit_names_from_json(tid: int):

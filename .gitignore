@@ -13,3 +13,6 @@
 /backend_py/data/scrape_debug.txt
 /tmp_scrape_output.txt
 ~$*.xlsx
+__pycache__/
+*.py[cod]
+*$py.class
